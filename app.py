@@ -1495,22 +1495,36 @@ app.register_blueprint(weather_bp)
 @app.route('/new-chat-endpoint', methods=['POST'])
 def new_chat_endpoint():
     """
-    Enhanced chat endpoint with robust error handling and simplified processing
+    Enhanced chat endpoint with comprehensive error handling and monitoring
     """
-    # Minimal request logging
-    app.logger.info(f"Received chat request from {request.remote_addr}")
+    import time
+    import traceback
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+    
+    # Enhanced request logging
+    request_start_time = time.time()
+    app.logger.info(f"Chat request received from {request.remote_addr}")
+    app.logger.info(f"Request headers: {dict(request.headers)}")
     
     # Validate request content type
     if not request.is_json:
         app.logger.warning("Invalid request: Not JSON")
-        return jsonify({"error": "Invalid request format"}), 400
+        return jsonify({
+            "error": "Invalid request format", 
+            "status": "error"
+        }), 400
 
-    # Parse JSON data with error handling
+    # Robust JSON parsing
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)  # Force parsing even with incorrect content type
     except Exception as json_error:
         app.logger.error(f"JSON parsing error: {json_error}")
-        return jsonify({"error": "Invalid JSON payload"}), 400
+        app.logger.error(traceback.format_exc())
+        return jsonify({
+            "error": "Invalid JSON payload", 
+            "details": str(json_error),
+            "status": "error"
+        }), 400
 
     # Extract and validate message
     message = data.get('message', '').strip()
@@ -1518,55 +1532,87 @@ def new_chat_endpoint():
     
     if not message:
         app.logger.warning("Empty message received")
-        return jsonify({"error": "Message cannot be empty"}), 400
+        return jsonify({
+            "error": "Message cannot be empty",
+            "status": "error"
+        }), 400
 
-    # Ensure chatbot is initialized
+    # Ensure chatbot is initialized with timeout protection
     if not hasattr(app, 'chatbot'):
         app.logger.error("Chatbot not initialized")
-        return jsonify({"error": "Chatbot service unavailable"}), 500
+        return jsonify({
+            "error": "Chatbot service unavailable", 
+            "status": "error"
+        }), 500
 
     # Prepare context
     full_context = message
     if file_content:
         full_context += f"\nAdditional context: {file_content}"
 
-    # Response generation with timeout protection
+    # Response generation with comprehensive timeout and error handling
     try:
         # Verify generate_response method exists
         if not hasattr(app.chatbot, 'generate_response'):
             app.logger.error("Invalid chatbot configuration")
-            return jsonify({"error": "Chatbot configuration error"}), 500
+            return jsonify({
+                "error": "Chatbot configuration error",
+                "status": "error"
+            }), 500
 
-        # Attempt response generation with timeout
-        from concurrent.futures import ThreadPoolExecutor, TimeoutError
-
+        # Threaded response generation with timeout
         with ThreadPoolExecutor() as executor:
             future = executor.submit(app.chatbot.generate_response, full_context)
             
             try:
-                response, error = future.result(timeout=30)  # 30-second timeout
+                response, error = future.result(timeout=45)  # Extended timeout
             except TimeoutError:
                 app.logger.warning("Response generation timed out")
-                return jsonify({"error": "Response generation timed out"}), 504
+                return jsonify({
+                    "error": "Response generation timed out", 
+                    "status": "timeout"
+                }), 504
+            except Exception as gen_error:
+                app.logger.error(f"Unexpected error in response generation: {gen_error}")
+                app.logger.error(traceback.format_exc())
+                return jsonify({
+                    "error": "Internal error during response generation",
+                    "details": str(gen_error),
+                    "status": "error"
+                }), 500
 
         # Handle response variations
         if error:
             app.logger.warning(f"Generation error: {error}")
-            return jsonify({"error": error}), 400
+            return jsonify({
+                "error": error,
+                "status": "generation_error"
+            }), 400
         
         if not response:
             app.logger.warning("Empty response generated")
             response = "I apologize, but I couldn't generate a meaningful response."
 
+        # Performance tracking
+        request_duration = time.time() - request_start_time
+        app.logger.info(f"Request processed in {request_duration:.2f} seconds")
+
         return jsonify({
             "message": response,
-            "source": getattr(app.chatbot, 'model_name', 'unknown')
+            "source": getattr(app.chatbot, 'model_name', 'unknown'),
+            "status": "success",
+            "processing_time": request_duration
         })
 
     except Exception as e:
-        # Comprehensive but concise error logging
-        app.logger.error(f"Unexpected chatbot error: {e}")
-        return jsonify({"error": "Internal server error during response generation"}), 500
+        # Comprehensive error logging
+        app.logger.critical(f"Unexpected chatbot error: {e}")
+        app.logger.critical(traceback.format_exc())
+        return jsonify({
+            "error": "Internal server error during response generation",
+            "details": str(e),
+            "status": "critical_error"
+        }), 500
 
 @app.route('/chat', methods=['POST'])
 def chat_endpoint():
