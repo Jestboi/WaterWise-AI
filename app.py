@@ -82,13 +82,56 @@ aws_bill_analyzer = AWSBillAnalyzer(app.config['UPLOAD_FOLDER'])
 def initialize_chatbot():
     """
     Global chatbot initialization function to be called during app startup
+    Adds robust Ollama model availability checks
     """
     import importlib.util
     import sys
+    import requests
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, current_dir)
     sys.path.insert(0, os.path.join(current_dir, 'utils'))
+    
+    # Ollama API URL from environment
+    ollama_api_url = os.getenv('OLLAMA_API_URL', 'http://localhost:11434')
+    
+    # Function to check Ollama model availability
+    def check_ollama_model(model_name):
+        try:
+            # Check available models
+            response = requests.get(f'{ollama_api_url}/api/tags')
+            if response.status_code != 200:
+                logger.warning(f"Failed to fetch Ollama model tags: {response.text}")
+                return False
+
+            models = response.json().get('models', [])
+            model_names = [model.get('name', '') for model in models]
+
+            # If model not found, attempt to pull
+            if not any(model_name in name for name in model_names):
+                logger.info(f"Model {model_name} not found. Attempting to pull...")
+                pull_response = requests.post(
+                    f'{ollama_api_url}/api/pull', 
+                    json={'model': model_name, 'stream': False}
+                )
+                
+                if pull_response.status_code == 200:
+                    logger.info(f"Successfully pulled model {model_name}")
+                    return True
+                else:
+                    logger.error(f"Failed to pull model {model_name}: {pull_response.text}")
+                    return False
+            
+            return True
+
+        except requests.RequestException as e:
+            logger.error(f"Error checking/pulling Ollama model {model_name}: {e}")
+            return False
+    
+    # Models to check and potentially pull
+    models_to_check = ['llama3.2', 'water-expert']
+    for model in models_to_check:
+        check_ollama_model(model)
     
     # Try multiple import strategies
     import_strategies = [
@@ -120,43 +163,18 @@ def initialize_chatbot():
                     spec.loader.exec_module(module)
                     break
             
-            # If module not found by file path, try standard import
-            if module is None:
-                module = __import__(module_name, fromlist=[class_name])
-            
-            # Get the class
-            ChatbotClass = getattr(module, class_name)
-            
-            # Special handling for different bot types
-            if class_name == 'WaterTaxExpert':
-                chatbot = ChatbotClass(context='general')
-            else:
-                chatbot = ChatbotClass()
-            
-            logger.info(f"Successfully initialized chatbot using {module_name}.{class_name}")
-            return chatbot
+            # If module successfully loaded, try to instantiate the class
+            if module and hasattr(module, class_name):
+                chatbot_class = getattr(module, class_name)
+                logger.info(f"Successfully imported {module_name}.{class_name}")
+                return chatbot_class()
         
-        except ImportError as import_error:
-            logger.error(f"Import error for {module_name}.{class_name}: {import_error}")
-            logger.error(f"Import traceback: {traceback.format_exc()}")
-        except AttributeError as attr_error:
-            logger.error(f"Attribute error for {module_name}.{class_name}: {attr_error}")
-            logger.error(f"Attribute traceback: {traceback.format_exc()}")
-        except Exception as init_error:
-            logger.error(f"Initialization error for {module_name}.{class_name}: {init_error}")
-            logger.error(f"Initialization traceback: {traceback.format_exc()}")
+        except Exception as e:
+            logger.error(f"Failed to import {module_name}.{class_name}: {e}")
     
-    # If no chatbot initialized, create a dummy
-    class DummyChatbot:
-        def __init__(self):
-            self.model_name = "dummy_chatbot"
-        
-        def generate_response(self, input_text):
-            logger.warning(f"Dummy chatbot responding to: {input_text}")
-            return f"Dummy chatbot response to: {input_text}", None
-    
-    logger.warning("Using dummy chatbot due to initialization failures")
-    return DummyChatbot()
+    # If no chatbot could be initialized
+    logger.error("Could not initialize any chatbot. Using a fallback or raising an error.")
+    return None  # Or raise an appropriate exception
 
 # Initialize chatbot during app startup
 with app.app_context():
