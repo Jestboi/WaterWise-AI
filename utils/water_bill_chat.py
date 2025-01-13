@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional
 class WaterBillOllamaChat:
     def __init__(self, 
                  ollama_host: str = 'http://localhost:11434', 
-                 model: str = 'llama3.2:latest'):
+                 model: str = 'llama3.2'):
         """
         Initialize Ollama chat for water bill analysis in English
         

@@ -81,118 +81,81 @@ aws_bill_analyzer = AWSBillAnalyzer(app.config['UPLOAD_FOLDER'])
 
 def initialize_chatbot():
     """
-    Global chatbot initialization function to be called during app startup
-    Adds robust Ollama model availability checks
+    Global chatbot initialization function with simplified, robust model loading
     """
     import importlib.util
     import sys
     import requests
+    import traceback
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, current_dir)
     sys.path.insert(0, os.path.join(current_dir, 'utils'))
     
-    # Ollama API URL from environment
+    # Simplified Ollama API URL
     ollama_api_url = os.getenv('OLLAMA_API_URL', 'http://localhost:11434')
     
-    # Function to check Ollama model availability
-    def check_ollama_model(model_name):
-        try:
-            # Timeout for requests
-            timeout = 60  # 60 seconds timeout
-            
-            # Check available models
-            logger.info(f"Checking availability of model: {model_name}")
-            response = requests.get(f'{ollama_api_url}/api/tags', timeout=timeout)
-            
-            if response.status_code != 200:
-                logger.warning(f"Failed to fetch Ollama model tags: {response.text}")
-                return False
-
-            models = response.json().get('models', [])
-            model_names = [model.get('name', '') for model in models]
-
-            # If model not found, attempt to pull
-            if not any(model_name in name for name in model_names):
-                logger.info(f"Model {model_name} not found. Attempting to pull...")
+    def check_ollama_model(model_name, max_attempts=3):
+        """Simplified model availability check with retry mechanism"""
+        for attempt in range(max_attempts):
+            try:
+                # Quick timeout for model check
+                response = requests.get(f'{ollama_api_url}/api/tags', timeout=10)
                 
-                # More robust pull request with timeout and detailed logging
+                if response.status_code == 200:
+                    # Minimal logging
+                    app.logger.info(f"Checking model: {model_name}")
+                    
+                    # Simple model existence check
+                    models = response.json().get('models', [])
+                    if any(model_name in model.get('name', '') for model in models):
+                        return True
+                
+                # Attempt to pull model if not found
                 pull_response = requests.post(
                     f'{ollama_api_url}/api/pull', 
-                    json={'model': model_name, 'stream': False},
-                    timeout=timeout
+                    json={'name': model_name, 'stream': False},
+                    timeout=60
                 )
                 
                 if pull_response.status_code == 200:
-                    logger.info(f"Successfully pulled model {model_name}")
+                    app.logger.info(f"Successfully pulled model: {model_name}")
                     return True
-                else:
-                    logger.error(f"Failed to pull model {model_name}: {pull_response.text}")
-                    return False
             
-            logger.info(f"Model {model_name} is already available")
-            return True
+            except Exception as e:
+                app.logger.warning(f"Model check attempt {attempt + 1} failed: {e}")
+                time.sleep(2 ** attempt)  # Exponential backoff
+        
+        return False
 
-        except requests.Timeout:
-            logger.error(f"Timeout occurred while checking/pulling Ollama model {model_name}")
-            return False
-        except requests.ConnectionError:
-            logger.error(f"Connection error while checking/pulling Ollama model {model_name}")
-            return False
-        except requests.RequestException as e:
-            logger.error(f"Error checking/pulling Ollama model {model_name}: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error checking/pulling Ollama model {model_name}: {e}")
-            return False
+    # Simplified model check
+    check_ollama_model('llama3.2')
     
-    # Models to check and potentially pull
-    models_to_check = ['llama3.2']  # Removed 'water-expert'
-    for model in models_to_check:
-        check_ollama_model(model)
-    
-    # Try multiple import strategies
+    # Import strategies with minimal logging
     import_strategies = [
         ('model_inference', 'WaterConservationBot'),
-        ('model_inference_advanced', 'WaterConservationBot'),
-        ('model_inference_farmers', 'WaterConservationBot'),
-        ('model_inference_education', 'WaterConservationBot'),
         ('utils.water_tax_expert', 'WaterTaxExpert')
     ]
     
-    # Detailed logging of import attempts
     for module_name, class_name in import_strategies:
         try:
-            # Use the global logger
-            logger.info(f"Attempting to import {module_name}.{class_name}")
+            module_path = os.path.join(current_dir, f"{module_name.replace('.', '/')}.py")
             
-            # Try multiple import methods
-            module_paths = [
-                os.path.join(current_dir, f"{module_name.replace('.', '/')}.py"),
-                os.path.join(current_dir, 'utils', f"{module_name.replace('.', '/')}.py")
-            ]
-            
-            module = None
-            for module_path in module_paths:
-                if os.path.exists(module_path):
-                    logger.info(f"Attempting to load module from {module_path}")
-                    spec = importlib.util.spec_from_file_location(module_name, module_path)
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                    break
-            
-            # If module successfully loaded, try to instantiate the class
-            if module and hasattr(module, class_name):
-                chatbot_class = getattr(module, class_name)
-                logger.info(f"Successfully imported {module_name}.{class_name}")
-                return chatbot_class()
+            if os.path.exists(module_path):
+                spec = importlib.util.spec_from_file_location(module_name, module_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                
+                if hasattr(module, class_name):
+                    chatbot_class = getattr(module, class_name)
+                    return chatbot_class()
         
         except Exception as e:
-            logger.error(f"Failed to import {module_name}.{class_name}: {e}")
+            app.logger.error(f"Import error for {module_name}.{class_name}: {e}")
     
-    # If no chatbot could be initialized
-    logger.error("Could not initialize any chatbot. Using a fallback or raising an error.")
-    return None  # Or raise an appropriate exception
+    # Fallback mechanism
+    app.logger.critical("Could not initialize any chatbot")
+    return None
 
 # Initialize chatbot during app startup
 with app.app_context():
@@ -1531,66 +1494,68 @@ app.register_blueprint(weather_bp)
 
 @app.route('/new-chat-endpoint', methods=['POST'])
 def new_chat_endpoint():
-    # Log incoming request details
-    logger.info(f"Received request headers: {request.headers}")
-    logger.info(f"Request content type: {request.content_type}")
+    """
+    Enhanced chat endpoint with robust error handling and simplified processing
+    """
+    # Minimal request logging
+    app.logger.info(f"Received chat request from {request.remote_addr}")
     
-    # Parse JSON data
+    # Validate request content type
+    if not request.is_json:
+        app.logger.warning("Invalid request: Not JSON")
+        return jsonify({"error": "Invalid request format"}), 400
+
+    # Parse JSON data with error handling
     try:
         data = request.get_json()
-        logger.info(f"Received JSON data: {data}")
     except Exception as json_error:
-        logger.error(f"JSON parsing error: {json_error}")
-        return jsonify({"error": "Invalid JSON"}), 400
+        app.logger.error(f"JSON parsing error: {json_error}")
+        return jsonify({"error": "Invalid JSON payload"}), 400
 
-    # Extract message and file content
+    # Extract and validate message
     message = data.get('message', '').strip()
     file_content = data.get('file_content')
     
-    logger.info(f"Chat request received. Message length: {len(message)}, File content length: {len(str(file_content)) if file_content else 4}")
-    
-    # Validate message
     if not message:
-        logger.warning("Empty message received")
+        app.logger.warning("Empty message received")
         return jsonify({"error": "Message cannot be empty"}), 400
 
     # Ensure chatbot is initialized
     if not hasattr(app, 'chatbot'):
-        logger.error("Chatbot is not initialized")
-        return jsonify({"error": "Chatbot initialization failed"}), 500
+        app.logger.error("Chatbot not initialized")
+        return jsonify({"error": "Chatbot service unavailable"}), 500
 
-    # Prepare full context
+    # Prepare context
     full_context = message
     if file_content:
         full_context += f"\nAdditional context: {file_content}"
 
-    # Log chatbot details before generation
-    logger.info(f"Chatbot type: {type(app.chatbot)}")
-    logger.info(f"Chatbot attributes: {dir(app.chatbot)}")
-
-    # Generate response
+    # Response generation with timeout protection
     try:
         # Verify generate_response method exists
         if not hasattr(app.chatbot, 'generate_response'):
-            logger.error("Chatbot does not have generate_response method")
-            return jsonify({"error": "Chatbot method not found"}), 500
+            app.logger.error("Invalid chatbot configuration")
+            return jsonify({"error": "Chatbot configuration error"}), 500
 
-        # Detailed logging before method call
-        logger.info(f"Calling generate_response with context: {full_context[:200]}...")
-        
-        response, error = app.chatbot.generate_response(full_context)
-        
-        # Log generation results
-        logger.info(f"Response generated: {response is not None}")
-        logger.info(f"Error: {error}")
+        # Attempt response generation with timeout
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
-        # Handle response
+        with ThreadPoolExecutor() as executor:
+            future = executor.submit(app.chatbot.generate_response, full_context)
+            
+            try:
+                response, error = future.result(timeout=30)  # 30-second timeout
+            except TimeoutError:
+                app.logger.warning("Response generation timed out")
+                return jsonify({"error": "Response generation timed out"}), 504
+
+        # Handle response variations
         if error:
-            logger.warning(f"Generation error: {error}")
+            app.logger.warning(f"Generation error: {error}")
             return jsonify({"error": error}), 400
         
         if not response:
-            logger.warning("Empty response generated")
+            app.logger.warning("Empty response generated")
             response = "I apologize, but I couldn't generate a meaningful response."
 
         return jsonify({
@@ -1599,9 +1564,8 @@ def new_chat_endpoint():
         })
 
     except Exception as e:
-        # Comprehensive error logging
-        logger.error(f"Unexpected chatbot generation error: {e}")
-        logger.error(f"Full traceback: {traceback.format_exc()}")
+        # Comprehensive but concise error logging
+        app.logger.error(f"Unexpected chatbot error: {e}")
         return jsonify({"error": "Internal server error during response generation"}), 500
 
 @app.route('/chat', methods=['POST'])
