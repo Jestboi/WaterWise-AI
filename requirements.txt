@@ -1,3 +1,6 @@
+# Ensure typing-extensions is compatible
+typing-extensions>=4.4.0,<5.0.0
+
 # Web Framework and Extensions
 Flask==2.3.2                # Main web framework
 Werkzeug==3.0.1            # WSGI web application library, used by Flask
@@ -21,33 +24,33 @@ Pillow==10.1.0            # Image processing library
 python-docx==0.8.11
 pytesseract==0.3.10
 
-# Bill Analyzer
+# Bill Analysis Dependencies
 pdf2image==1.16.3
 opencv-python-headless==4.7.0.72
 numpy==1.24.3
-
-# AI-Powered Bill Analysis
-scikit-learn==1.2.2
 pandas==2.0.1
-numpy==1.24.3
-opencv-python-headless==4.7.0.72
 
 # Machine Learning Bill Analysis
 scikit-learn==1.2.2
-pandas==2.0.1
 joblib==1.2.0
+
+# Data Visualization
+matplotlib==3.7.1
+seaborn==0.12.2
+plotly==5.14.1
+
+# AI and API Interactions
+openai==0.27.8
+boto3==1.28.11
+botocore==1.31.11
+s3transfer==0.6.0         # S3 file transfer for boto3
+aws-sam-translator==1.58.0 # AWS SAM translator
 
 # External API and HTTP Requests
 requests==2.31.0          # HTTP library for making API requests
 
 # Utilities
 bleach==6.1.0            # HTML sanitization
-
-# AWS Integration
-boto3==1.28.11           # AWS SDK for Python
-botocore==1.31.11        # Core functionality for boto3
-s3transfer==0.6.0         # S3 file transfer for boto3
-aws-sam-translator==1.58.0 # AWS SAM translator
 
 # Server
 gunicorn==20.1.0         # Production WSGI HTTP Server
@@ -57,16 +60,3 @@ pytest==7.4.4            # Testing framework
 pytest-cov==4.1.0        # Test coverage reporting
 black==23.12.1           # Code formatter
 flake8==6.1.0            # Code linter
-
-# Graph Generation
-matplotlib==3.7.1
-numpy==1.24.3
-openai==0.27.8
-python-dotenv==1.0.0
-boto3==1.28.11
-botocore==1.31.11
-tensorflow==2.12.0
-transformers==4.30.2
-torch==2.0.1
-seaborn==0.12.2
-plotly==5.14.1
