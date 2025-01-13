@@ -129,7 +129,7 @@ def initialize_chatbot():
             return False
     
     # Models to check and potentially pull
-    models_to_check = ['llama3.2', 'water-expert']
+    models_to_check = ['llama3.2']  # Removed 'water-expert'
     for model in models_to_check:
         check_ollama_model(model)
     
