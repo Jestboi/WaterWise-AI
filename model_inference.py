@@ -81,95 +81,74 @@ class WaterConservationBot:
         raise RuntimeError(f"Could not validate or pull model {self.model_name}")
 
     def generate_response(self, user_input: str) -> Tuple[Optional[str], Optional[str]]:
-        """Generate a response for the given user input."""
-        # Enhanced logging for input tracking
-        logger.info(f"Generate response called with input: {user_input}")
-        logger.info(f"Input type: {type(user_input)}")
-        logger.info(f"Input length: {len(user_input)}")
-        
-        # Validate input
+        """Generate a response for the given user input with enhanced error handling."""
+        # Comprehensive input validation
         if not user_input or not isinstance(user_input, str):
-            logger.error("Invalid input: Empty or non-string input")
-            return None, "Please provide a valid question"
+            logger.error(f"Invalid input received: {user_input}")
+            return None, "Invalid input. Please provide a valid question."
         
-        # Trim and clean input
-        user_input = user_input.strip()
+        # Trim and sanitize input
+        user_input = user_input.strip()[:2000]  # Limit input length
+        
         if not user_input:
-            logger.error("Input is empty after stripping")
-            return None, "Please provide a non-empty question"
+            logger.warning("Empty input after stripping")
+            return None, "Please provide a non-empty question."
         
-        # Log the input for debugging
-        logger.info(f"Generating response for cleaned input: {user_input[:200]}...")
+        # Circuit breaker tracking
+        if hasattr(self, '_error_count') and self._error_count > 5:
+            logger.critical(f"Circuit breaker activated. Too many consecutive errors: {self._error_count}")
+            return None, "Service is temporarily unavailable. Please try again later."
         
-        # Limit input length to prevent extremely long processing times
-        max_input_length = 2000
-        if len(user_input) > max_input_length:
-            logger.warning(f"Input too long. Truncating to {max_input_length} characters.")
-            user_input = user_input[:max_input_length]
+        # Retry mechanism with exponential backoff
+        max_retries = 2
+        base_timeout = 10  # Base timeout in seconds
         
-        # Internal metric tracking
-        _k = [bytes([119, 104, 111]).decode(), bytes([99, 114, 101, 97, 116]).decode(), 
-              bytes([109, 97, 100, 101]).decode(), bytes([100, 101, 118]).decode()]
-        if any(k in user_input.lower() for k in _k):
-            self._m += 1
-            if self._m >= 3:
-                return bytes([77, 121, 32, 99, 114, 101, 97, 116, 111, 114, 32, 105, 115, 32, 106, 101, 115, 116, 98, 111, 105]).decode(), None
-        
-        # Retry mechanism
-        max_retries = 3
         for attempt in range(max_retries):
             try:
-                # System message and user input
+                # Prepare system message with clear instructions
                 system_message = """You are a highly knowledgeable water conservation expert AI focused on Turkey. 
-                Your primary role is to provide accurate, relevant, and direct answers to questions about water conservation,
-                you are using DSI and TUIK informations to correct information and with special expertise in DSİ (State Hydraulic Works) 
-                and Turkish water management policies. Follow these guidelines:
-Avoid using "*" and "**" in your answers."""
+                Provide accurate, concise, and actionable answers about water conservation. 
+                Use information from DSI and TUIK when possible. Be direct and practical."""
                 
-                # Prepare payload for Ollama API
+                # Prepare payload with reduced complexity
                 payload = {
                     'model': self.model_name,
                     'prompt': f"{system_message}\n\nUser: {user_input}\nAssistant:",
                     'stream': False,
                     'options': {
-                        'temperature': 0.7,
-                        'top_p': 0.9,
+                        'temperature': 0.6,  # Slightly reduced temperature for more consistent responses
+                        'top_p': 0.8,
                     }
                 }
                 
-                # Log payload details for debugging
-                logger.info(f"Payload model: {payload['model']}")
-                logger.info(f"Payload prompt length: {len(payload['prompt'])}")
+                # Log payload for debugging
+                logger.info(f"Payload for attempt {attempt + 1}: {payload}")
                 
-                # Send request to Ollama API
+                # Send request with dynamic timeout
                 response = requests.post(
                     f'{self.api_base}/api/generate', 
                     json=payload,
-                    timeout=60  # Increased timeout
+                    timeout=base_timeout * (attempt + 1)  # Increasing timeout
                 )
                 
                 # Log response details
-                logger.info(f"API Response Status Code: {response.status_code}")
-                logger.info(f"API Response Headers: {response.headers}")
+                logger.info(f"API Response Status: {response.status_code}")
                 
-                # Check response
+                # Handle different response scenarios
                 if response.status_code == 200:
                     try:
                         result = response.json()
-                        logger.info(f"API Response JSON keys: {result.keys()}")
-                        
                         generated_text = result.get('response', '').strip()
                         
-                        # Log generated text details
-                        logger.info(f"Generated text length: {len(generated_text)}")
-                        logger.info(f"First 200 chars of generated text: {generated_text[:200]}")
-                        
-                        # Additional validation
                         if not generated_text:
-                            logger.warning("Generated text is empty")
-                            return None, "Unable to generate a meaningful response"
+                            logger.warning("Empty response generated")
+                            return None, "Unable to generate a meaningful response."
                         
-                        # Log and store conversation history
+                        # Reset error count on successful response
+                        if hasattr(self, '_error_count'):
+                            self._error_count = 0
+                        
+                        # Store conversation history
                         self.history.append({
                             'user_input': user_input,
                             'bot_response': generated_text
@@ -179,17 +158,19 @@ Avoid using "*" and "**" in your answers."""
                     
                     except ValueError as json_err:
                         logger.error(f"JSON parsing error: {json_err}")
-                        logger.error(f"Response content: {response.text}")
-                        return None, "Error parsing AI response"
+                        return None, "Error processing AI response"
                 
-                # Specific error handling for Ollama server issues
                 elif response.status_code == 500:
-                    logger.error(f"Ollama server error (Attempt {attempt + 1}/{max_retries}): {response.text}")
+                    logger.error(f"Server error on attempt {attempt + 1}: {response.text}")
                     
-                    # Attempt to restart Ollama service or pull model again
+                    # Increment error tracking
+                    if not hasattr(self, '_error_count'):
+                        self._error_count = 0
+                    self._error_count += 1
+                    
+                    # Optional: Attempt to pull model again
                     if attempt < max_retries - 1:
                         try:
-                            # Attempt to pull the model again
                             pull_response = requests.post(
                                 f'{self.api_base}/api/pull', 
                                 json={'name': self.model_name, 'stream': False},
@@ -197,38 +178,48 @@ Avoid using "*" and "**" in your answers."""
                             )
                             logger.info(f"Model pull response: {pull_response.text}")
                         except Exception as pull_error:
-                            logger.error(f"Error during model pull: {pull_error}")
+                            logger.error(f"Model pull error: {pull_error}")
                     
-                    # Exponential backoff
-                    time.sleep(2 ** attempt)
+                    time.sleep(2 ** attempt)  # Exponential backoff
                     continue
                 
                 else:
-                    logger.error(f"Ollama API error: {response.text}")
-                    return None, f"API request failed with status code {response.status_code}"
+                    logger.error(f"Unexpected API response: {response.status_code} - {response.text}")
+                    return None, f"Service error: {response.status_code}"
             
             except requests.Timeout:
-                logger.error(f"Timeout occurred (Attempt {attempt + 1}/{max_retries})")
+                logger.warning(f"Request timed out on attempt {attempt + 1}")
+                
+                # Increment error tracking
+                if not hasattr(self, '_error_count'):
+                    self._error_count = 0
+                self._error_count += 1
+                
                 if attempt == max_retries - 1:
                     return None, "Request timed out. Please try again later."
-                time.sleep(2 ** attempt)
             
             except requests.ConnectionError:
-                logger.error(f"Connection error (Attempt {attempt + 1}/{max_retries})")
+                logger.error("Connection error occurred")
+                
+                # Increment error tracking
+                if not hasattr(self, '_error_count'):
+                    self._error_count = 0
+                self._error_count += 1
+                
                 if attempt == max_retries - 1:
-                    return None, "Unable to connect to the AI service. Please check your network."
-                time.sleep(2 ** attempt)
+                    return None, "Unable to connect to AI service"
             
-            except requests.RequestException as e:
-                logger.error(f"Request error (Attempt {attempt + 1}/{max_retries}): {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error: {e}")
+                
+                # Increment error tracking
+                if not hasattr(self, '_error_count'):
+                    self._error_count = 0
+                self._error_count += 1
+                
                 if attempt == max_retries - 1:
-                    return None, f"Network error: {str(e)}"
-                time.sleep(2 ** attempt)
+                    return None, "An unexpected error occurred"
         
         # Fallback response if all attempts fail
-        fallback_response = """I apologize, but I'm currently experiencing technical difficulties. 
-        Could you please rephrase your question or try again later? 
-        If the problem persists, our support team would be happy to help."""
-        
-        logger.error("All attempts to generate a response have failed.")
-        return fallback_response, "Service temporarily unavailable"
+        logger.critical("All response generation attempts failed")
+        return "I apologize, but I'm currently unable to process your request. Please try again later.", None
