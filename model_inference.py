@@ -1,34 +1,105 @@
-import requests
-import json
 import logging
 import os
+import requests
+import time
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime
-import time
 
 # Configure logging with UTF-8 encoding
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    encoding='utf-8'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('model_inference.log', encoding='utf-8')
+    ]
 )
 logger = logging.getLogger(__name__)
 
 class WaterConservationBot:
-    def __init__(self, model_name: str = "llama3.2"):
-        """Initialize the Water Conservation Bot."""
+    def __init__(self, model_name='llama3.2', api_base=None):
+        """
+        Initialize the Water Conservation Bot with Ollama model.
+        
+        :param model_name: Name of the Ollama model to use
+        :param api_base: Base URL for Ollama API (optional)
+        """
         self.model_name = model_name
-        self.api_base = "http://localhost:11434/api"
+        self.api_base = api_base or os.getenv('OLLAMA_API_URL', 'http://localhost:11434')
         self.history = []  # Store user interactions and responses
         self._m = 0  # Internal metric counter
+        
+        # Validate model availability on initialization
+        self._validate_model()
     
+    def _validate_model(self, max_retries=3):
+        """
+        Validate the availability of the specified Ollama model.
+        
+        :param max_retries: Number of times to retry model validation
+        """
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Checking availability of model: {self.model_name}")
+                
+                # Check model tags
+                response = requests.get(
+                    f'{self.api_base}/api/tags', 
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    models = response.json().get('models', [])
+                    model_names = [model.get('name', '') for model in models]
+                    
+                    if any(self.model_name in name for name in model_names):
+                        logger.info(f"Model {self.model_name} is available")
+                        return True
+                    
+                    # If model not found, attempt to pull
+                    logger.warning(f"Model {self.model_name} not found. Attempting to pull...")
+                    pull_response = requests.post(
+                        f'{self.api_base}/api/pull', 
+                        json={'name': self.model_name, 'stream': False},
+                        timeout=300  # Long timeout for model download
+                    )
+                    
+                    if pull_response.status_code in [200, 201]:
+                        logger.info(f"Successfully pulled model {self.model_name}")
+                        return True
+                    
+                    logger.error(f"Failed to pull model: {pull_response.text}")
+                
+                else:
+                    logger.error(f"Failed to check model tags: {response.text}")
+            
+            except requests.RequestException as e:
+                logger.error(f"Model validation error (Attempt {attempt + 1}/{max_retries}): {e}")
+                time.sleep(2 ** attempt)  # Exponential backoff
+        
+        # If all attempts fail
+        raise RuntimeError(f"Could not validate or pull model {self.model_name}")
+
     def generate_response(self, user_input: str) -> Tuple[Optional[str], Optional[str]]:
         """Generate a response for the given user input."""
-        if not user_input or not user_input.strip():
+        # Enhanced logging for input tracking
+        logger.info(f"Generate response called with input: {user_input}")
+        logger.info(f"Input type: {type(user_input)}")
+        logger.info(f"Input length: {len(user_input)}")
+        
+        # Validate input
+        if not user_input or not isinstance(user_input, str):
+            logger.error("Invalid input: Empty or non-string input")
             return None, "Please provide a valid question"
         
+        # Trim and clean input
+        user_input = user_input.strip()
+        if not user_input:
+            logger.error("Input is empty after stripping")
+            return None, "Please provide a non-empty question"
+        
         # Log the input for debugging
-        logger.info(f"Generating response for input: {user_input[:100]}...")
+        logger.info(f"Generating response for cleaned input: {user_input[:200]}...")
         
         # Limit input length to prevent extremely long processing times
         max_input_length = 2000
@@ -63,31 +134,53 @@ Avoid using "*" and "**" in your answers."""
                     'options': {
                         'temperature': 0.7,
                         'top_p': 0.9,
-                        # Remove max_tokens, as it's causing the invalid option warning
-                        # Use max_tokens only if explicitly supported by the specific Ollama model
                     }
                 }
                 
+                # Log payload details for debugging
+                logger.info(f"Payload model: {payload['model']}")
+                logger.info(f"Payload prompt length: {len(payload['prompt'])}")
+                
                 # Send request to Ollama API
-                ollama_api_url = os.getenv('OLLAMA_API_URL', 'http://localhost:11434')
                 response = requests.post(
-                    f'{ollama_api_url}/api/generate', 
+                    f'{self.api_base}/api/generate', 
                     json=payload,
-                    timeout=30  # 30-second timeout
+                    timeout=60  # Increased timeout
                 )
+                
+                # Log response details
+                logger.info(f"API Response Status Code: {response.status_code}")
+                logger.info(f"API Response Headers: {response.headers}")
                 
                 # Check response
                 if response.status_code == 200:
-                    result = response.json()
-                    generated_text = result.get('response', '').strip()
+                    try:
+                        result = response.json()
+                        logger.info(f"API Response JSON keys: {result.keys()}")
+                        
+                        generated_text = result.get('response', '').strip()
+                        
+                        # Log generated text details
+                        logger.info(f"Generated text length: {len(generated_text)}")
+                        logger.info(f"First 200 chars of generated text: {generated_text[:200]}")
+                        
+                        # Additional validation
+                        if not generated_text:
+                            logger.warning("Generated text is empty")
+                            return None, "Unable to generate a meaningful response"
+                        
+                        # Log and store conversation history
+                        self.history.append({
+                            'user_input': user_input,
+                            'bot_response': generated_text
+                        })
+                        
+                        return generated_text, None
                     
-                    # Log and store conversation history
-                    self.history.append({
-                        'user_input': user_input,
-                        'bot_response': generated_text
-                    })
-                    
-                    return generated_text, None
+                    except ValueError as json_err:
+                        logger.error(f"JSON parsing error: {json_err}")
+                        logger.error(f"Response content: {response.text}")
+                        return None, "Error parsing AI response"
                 
                 # Specific error handling for Ollama server issues
                 elif response.status_code == 500:
@@ -98,8 +191,8 @@ Avoid using "*" and "**" in your answers."""
                         try:
                             # Attempt to pull the model again
                             pull_response = requests.post(
-                                f'{ollama_api_url}/api/pull', 
-                                json={'model': self.model_name, 'stream': False},
+                                f'{self.api_base}/api/pull', 
+                                json={'name': self.model_name, 'stream': False},
                                 timeout=30
                             )
                             logger.info(f"Model pull response: {pull_response.text}")
