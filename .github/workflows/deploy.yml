@@ -1,0 +1,59 @@
+name: WaterWise AI Deployment
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        # Add your test commands here
+        # For example: python -m unittest discover tests/
+    
+    - name: Build Docker image
+      run: |
+        docker build -t waterwise-ai .
+    
+    # Optional: Deploy to a cloud platform
+    # Uncomment and configure based on your deployment target
+    # - name: Deploy to DigitalOcean
+    #   uses: appleboy/ssh-action@master
+    #   with:
+    #     host: ${{ secrets.SERVER_IP }}
+    #     username: ${{ secrets.SERVER_USERNAME }}
+    #     key: ${{ secrets.SERVER_SSH_KEY }}
+    #     script: |
+    #       docker pull yourusername/waterwise-ai
+    #       docker stop waterwise-container || true
+    #       docker rm waterwise-container || true
+    #       docker run -d --name waterwise-container -p 5000:5000 yourusername/waterwise-ai
+
+  # Optional: Deploy to GitHub Pages if you have a static frontend
+  # deploy-github-pages:
+  #   needs: build-and-deploy
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Deploy to GitHub Pages
+  #       uses: peaceiris/actions-gh-pages@v3
+  #       with:
+  #         github_token: ${{ secrets.GITHUB_TOKEN }}
+  #         publish_dir: ./static
