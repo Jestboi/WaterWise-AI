@@ -24,12 +24,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
-# Pull Ollama models
-RUN ollama pull llama3.2
-RUN ollama pull water-expert
-
 # Expose the port the app runs on
 EXPOSE 5000
 
-# Start Ollama and the application
+# Start the application
 CMD ollama serve & gunicorn --bind 0.0.0.0:5000 app:app
