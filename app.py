@@ -98,8 +98,13 @@ def initialize_chatbot():
     # Function to check Ollama model availability
     def check_ollama_model(model_name):
         try:
+            # Timeout for requests
+            timeout = 60  # 60 seconds timeout
+            
             # Check available models
-            response = requests.get(f'{ollama_api_url}/api/tags')
+            logger.info(f"Checking availability of model: {model_name}")
+            response = requests.get(f'{ollama_api_url}/api/tags', timeout=timeout)
+            
             if response.status_code != 200:
                 logger.warning(f"Failed to fetch Ollama model tags: {response.text}")
                 return False
@@ -110,9 +115,12 @@ def initialize_chatbot():
             # If model not found, attempt to pull
             if not any(model_name in name for name in model_names):
                 logger.info(f"Model {model_name} not found. Attempting to pull...")
+                
+                # More robust pull request with timeout and detailed logging
                 pull_response = requests.post(
                     f'{ollama_api_url}/api/pull', 
-                    json={'model': model_name, 'stream': False}
+                    json={'model': model_name, 'stream': False},
+                    timeout=timeout
                 )
                 
                 if pull_response.status_code == 200:
@@ -122,10 +130,20 @@ def initialize_chatbot():
                     logger.error(f"Failed to pull model {model_name}: {pull_response.text}")
                     return False
             
+            logger.info(f"Model {model_name} is already available")
             return True
 
+        except requests.Timeout:
+            logger.error(f"Timeout occurred while checking/pulling Ollama model {model_name}")
+            return False
+        except requests.ConnectionError:
+            logger.error(f"Connection error while checking/pulling Ollama model {model_name}")
+            return False
         except requests.RequestException as e:
             logger.error(f"Error checking/pulling Ollama model {model_name}: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error checking/pulling Ollama model {model_name}: {e}")
             return False
     
     # Models to check and potentially pull
