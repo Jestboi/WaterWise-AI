@@ -4,6 +4,7 @@ import requests
 import time
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime
+import traceback
 
 # Configure logging with UTF-8 encoding
 logging.basicConfig(
@@ -49,31 +50,48 @@ class WaterConservationBot:
             logger.critical(f"Unexpected error during model initialization: {e}")
             self.model_name = None
     
-    def _validate_model(self, max_retries=3):
+    def _validate_model(self, max_retries=5):
         """
-        Robust model validation with enhanced download and error handling
+        Robust model validation with comprehensive error handling and diagnostics.
         
         Args:
-            max_retries (int): Maximum number of retry attempts for model validation
+            max_retries (int): Maximum number of validation attempts
         
         Returns:
-            bool: True if model is successfully validated, False otherwise
+            bool: Model validation status
         """
         import time
         import requests
         
-        # Configurable model download parameters
-        MODEL_DOWNLOAD_TIMEOUT = 600  # 10-minute timeout for large model downloads
-        BASE_WAIT_TIME = 5  # Base wait time between retries
+        # Extended configuration for model validation
+        MODEL_DOWNLOAD_TIMEOUT = 900  # 15-minute timeout for large model downloads
+        BASE_WAIT_TIME = 10  # Base wait time between retries
+        
+        # Diagnostic logging of Ollama configuration
+        logger.info(f"Validating model: {self.model_name}")
+        logger.info(f"Ollama API Base URL: {self.api_base}")
         
         for attempt in range(max_retries):
             try:
-                logger.info(f"Model validation attempt {attempt + 1}/{max_retries} for {self.model_name}")
+                # Comprehensive server health check
+                health_response = requests.get(
+                    f'{self.api_base}/api/version', 
+                    timeout=30
+                )
                 
-                # Check available models
+                if health_response.status_code != 200:
+                    logger.warning(f"Ollama server health check failed: {health_response.text}")
+                    time.sleep(BASE_WAIT_TIME * (2 ** attempt))
+                    continue
+                
+                # Log server version for diagnostics
+                server_version = health_response.json().get('version', 'Unknown')
+                logger.info(f"Ollama Server Version: {server_version}")
+                
+                # Check available models with extended timeout
                 tags_response = requests.get(
                     f'{self.api_base}/api/tags', 
-                    timeout=15
+                    timeout=60
                 )
                 
                 if tags_response.status_code != 200:
@@ -84,31 +102,40 @@ class WaterConservationBot:
                 models = tags_response.json().get('models', [])
                 model_names = [model.get('name', '') for model in models]
                 
-                # Check if model is already available
-                if any(self.model_name in name for name in model_names):
-                    logger.info(f"Model {self.model_name} is already available")
+                # Detailed model diagnostics
+                logger.info(f"Available models: {model_names}")
+                
+                # Check if exact model or partial match exists
+                model_match = any(
+                    self.model_name in name or name in self.model_name 
+                    for name in model_names
+                )
+                
+                if model_match:
+                    logger.info(f"Model {self.model_name} is available")
                     return True
                 
-                # Attempt model download with comprehensive logging
-                logger.info(f"Initiating download for model: {self.model_name}")
+                # Attempt model pull with comprehensive parameters
+                logger.warning(f"Model {self.model_name} not found. Attempting to pull...")
                 
                 pull_response = requests.post(
                     f'{self.api_base}/api/pull', 
                     json={
                         'name': self.model_name, 
                         'stream': False,
-                        'insecure': False  # Ensure secure download
+                        'insecure': False,
+                        'timeout': MODEL_DOWNLOAD_TIMEOUT
                     },
                     timeout=MODEL_DOWNLOAD_TIMEOUT
                 )
                 
-                # Detailed response handling
+                # Detailed pull response handling
                 if pull_response.status_code in [200, 201]:
                     logger.info(f"Successfully downloaded model: {self.model_name}")
                     
                     # Verify model after download
-                    time.sleep(5)  # Brief pause to allow model registration
-                    verify_response = requests.get(f'{self.api_base}/api/tags', timeout=15)
+                    time.sleep(10)  # Extended pause for model registration
+                    verify_response = requests.get(f'{self.api_base}/api/tags', timeout=30)
                     
                     if verify_response.status_code == 200:
                         verify_models = verify_response.json().get('models', [])
@@ -119,16 +146,17 @@ class WaterConservationBot:
                 logger.warning(f"Model download failed. Status: {pull_response.status_code}")
                 time.sleep(BASE_WAIT_TIME * (2 ** attempt))
             
-            except requests.Timeout:
-                logger.error(f"Timeout during model {self.model_name} validation/download")
+            except requests.Timeout as timeout_err:
+                logger.error(f"Timeout during model validation: {timeout_err}")
             
-            except requests.ConnectionError:
-                logger.error(f"Connection error during model {self.model_name} validation")
+            except requests.ConnectionError as conn_err:
+                logger.error(f"Connection error during model validation: {conn_err}")
             
             except Exception as e:
                 logger.critical(f"Unexpected error in model validation: {e}")
+                logger.critical(traceback.format_exc())
         
-        # Final failure state
+        # Final failure state with comprehensive error report
         logger.error(f"Could not validate or download model {self.model_name} after {max_retries} attempts")
         return False
 
@@ -142,10 +170,15 @@ class WaterConservationBot:
         Returns:
             Tuple[Optional[str], Optional[str]]: Generated response and error message (if any)
         """
-        # Check if a valid model is available
+        # Comprehensive model availability check
         if not self.model_name:
             logger.critical("No valid model available for response generation")
             return None, "AI service is currently unavailable. Please try again later."
+        
+        # Retry mechanism for model revalidation
+        if not self._validate_model(max_retries=2):
+            logger.error(f"Failed to validate model {self.model_name}")
+            return None, "Unable to load AI model. Service temporarily unavailable."
         
         # Input validation with enhanced logging
         if not user_input or not isinstance(user_input, str):
@@ -163,47 +196,59 @@ class WaterConservationBot:
             logger.warning("Input became empty after stripping")
             return None, "Please provide a non-empty question."
         
-        # Circuit breaker tracking
-        if hasattr(self, '_error_count') and self._error_count > 5:
-            logger.critical(f"Circuit breaker activated. Too many consecutive errors: {self._error_count}")
+        # Circuit breaker mechanism with enhanced tracking
+        max_errors = 5
+        if not hasattr(self, '_error_tracking'):
+            self._error_tracking = {
+                'count': 0,
+                'last_reset': datetime.now()
+            }
+        
+        # Reset error count if more than an hour has passed
+        current_time = datetime.now()
+        if (current_time - self._error_tracking.get('last_reset', current_time)).total_seconds() > 3600:
+            self._error_tracking['count'] = 0
+            self._error_tracking['last_reset'] = current_time
+        
+        if self._error_tracking['count'] > max_errors:
+            logger.critical(f"Circuit breaker activated. Consecutive errors: {self._error_tracking['count']}")
             return None, "Service is temporarily unavailable. Please try again later."
         
-        # Retry mechanism with exponential backoff
-        max_retries = 2
-        base_timeout = 10  # Base timeout in seconds
+        # Retry mechanism with comprehensive error handling
+        max_retries = 3
+        base_timeout = 30  # Increased base timeout
         
         for attempt in range(max_retries):
             try:
-                # Prepare system message with clear instructions
-                system_message = """You are a highly knowledgeable water conservation expert AI focused on Turkey. 
-                Provide accurate, concise, and actionable answers about water conservation. 
-                Use information from DSI and TUIK when possible. Be direct and practical."""
+                # Prepare system message with clear, specific instructions
+                system_message = """You are an advanced water conservation expert AI specializing in Turkey's water resources. 
+                Provide precise, actionable advice on water conservation. Use authoritative sources like DSI and TUIK. 
+                Be concise, practical, and focus on sustainable water management strategies."""
                 
-                # Prepare payload with reduced complexity
+                # Prepare payload with intelligent configuration
                 payload = {
                     'model': self.model_name,
                     'prompt': f"{system_message}\n\nUser: {user_input}\nAssistant:",
                     'stream': False,
                     'options': {
-                        'temperature': 0.6,  # Slightly reduced temperature for more consistent responses
-                        'top_p': 0.8,
+                        'temperature': 0.5,  # Balanced temperature for consistent responses
+                        'top_p': 0.9,  # Slightly higher top_p for more diverse responses
+                        'num_ctx': 2048,  # Increased context window
                     }
                 }
                 
-                # Log payload for debugging
-                logger.info(f"Payload for attempt {attempt + 1}: {payload}")
+                # Detailed logging for traceability
+                logger.info(f"Generating response (Attempt {attempt + 1}/{max_retries})")
+                logger.debug(f"Payload: {payload}")
                 
-                # Send request with dynamic timeout
+                # Send request with dynamic timeout and error tracking
                 response = requests.post(
                     f'{self.api_base}/api/generate', 
                     json=payload,
                     timeout=base_timeout * (attempt + 1)  # Increasing timeout
                 )
                 
-                # Log response details
-                logger.info(f"API Response Status: {response.status_code}")
-                
-                # Handle different response scenarios
+                # Comprehensive response handling
                 if response.status_code == 200:
                     try:
                         result = response.json()
@@ -211,33 +256,34 @@ class WaterConservationBot:
                         
                         if not generated_text:
                             logger.warning("Empty response generated")
+                            self._error_tracking['count'] += 1
                             return None, "Unable to generate a meaningful response."
                         
-                        # Reset error count on successful response
-                        if hasattr(self, '_error_count'):
-                            self._error_count = 0
+                        # Reset error tracking on successful response
+                        self._error_tracking['count'] = 0
+                        self._error_tracking['last_reset'] = current_time
                         
-                        # Store conversation history
+                        # Store conversation history with metadata
                         self.history.append({
+                            'timestamp': current_time,
                             'user_input': user_input,
-                            'bot_response': generated_text
+                            'bot_response': generated_text,
+                            'model': self.model_name,
+                            'attempt': attempt + 1
                         })
                         
                         return generated_text, None
                     
                     except ValueError as json_err:
                         logger.error(f"JSON parsing error: {json_err}")
+                        self._error_tracking['count'] += 1
                         return None, "Error processing AI response"
-                
-                elif response.status_code == 500:
-                    logger.error(f"Server error on attempt {attempt + 1}: {response.text}")
+            
+                elif response.status_code in [500, 503]:
+                    logger.error(f"Server error (Status {response.status_code}) on attempt {attempt + 1}: {response.text}")
+                    self._error_tracking['count'] += 1
                     
-                    # Increment error tracking
-                    if not hasattr(self, '_error_count'):
-                        self._error_count = 0
-                    self._error_count += 1
-                    
-                    # Optional: Attempt to pull model again
+                    # Attempt model recovery
                     if attempt < max_retries - 1:
                         try:
                             pull_response = requests.post(
@@ -245,50 +291,39 @@ class WaterConservationBot:
                                 json={'name': self.model_name, 'stream': False},
                                 timeout=30
                             )
-                            logger.info(f"Model pull response: {pull_response.text}")
+                            logger.info(f"Model recovery attempt: {pull_response.text}")
                         except Exception as pull_error:
-                            logger.error(f"Model pull error: {pull_error}")
+                            logger.error(f"Model recovery failed: {pull_error}")
                     
                     time.sleep(2 ** attempt)  # Exponential backoff
                     continue
-                
+            
                 else:
                     logger.error(f"Unexpected API response: {response.status_code} - {response.text}")
+                    self._error_tracking['count'] += 1
                     return None, f"Service error: {response.status_code}"
-            
+        
             except requests.Timeout:
                 logger.warning(f"Request timed out on attempt {attempt + 1}")
-                
-                # Increment error tracking
-                if not hasattr(self, '_error_count'):
-                    self._error_count = 0
-                self._error_count += 1
+                self._error_tracking['count'] += 1
                 
                 if attempt == max_retries - 1:
                     return None, "Request timed out. Please try again later."
-            
-            except requests.ConnectionError:
-                logger.error("Connection error occurred")
-                
-                # Increment error tracking
-                if not hasattr(self, '_error_count'):
-                    self._error_count = 0
-                self._error_count += 1
-                
-                if attempt == max_retries - 1:
-                    return None, "Unable to connect to AI service"
-            
-            except Exception as e:
-                logger.error(f"Unexpected error: {e}")
-                
-                # Increment error tracking
-                if not hasattr(self, '_error_count'):
-                    self._error_count = 0
-                self._error_count += 1
-                
-                if attempt == max_retries - 1:
-                    return None, "An unexpected error occurred"
         
-        # Fallback response if all attempts fail
-        logger.critical("All response generation attempts failed")
-        return "I apologize, but I'm currently unable to process your request. Please try again later.", None
+            except requests.ConnectionError as conn_err:
+                logger.error(f"Connection error: {conn_err}")
+                self._error_tracking['count'] += 1
+                
+                if attempt == max_retries - 1:
+                    return None, "Unable to connect to the AI service."
+        
+            except Exception as unexpected_err:
+                logger.critical(f"Unexpected error: {unexpected_err}")
+                self._error_tracking['count'] += 1
+                
+                if attempt == max_retries - 1:
+                    return None, "An unexpected error occurred. Please try again later."
+    
+        # Fallback if all attempts fail
+        logger.error("All response generation attempts failed")
+        return None, "Service is currently unavailable. Please try again later."
