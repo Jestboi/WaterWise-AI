@@ -14,7 +14,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class WaterConservationBot:
-    def __init__(self, model_name: str = "water-expert"):
+    def __init__(self, model_name: str = "llama3.2"):
         """Initialize the Water Conservation Bot."""
         self.model_name = model_name
         self.api_base = "http://localhost:11434/api"
