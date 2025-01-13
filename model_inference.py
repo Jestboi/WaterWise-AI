@@ -63,7 +63,8 @@ Avoid using "*" and "**" in your answers."""
                     'options': {
                         'temperature': 0.7,
                         'top_p': 0.9,
-                        'max_tokens': 500
+                        # Remove max_tokens, as it's causing the invalid option warning
+                        # Use max_tokens only if explicitly supported by the specific Ollama model
                     }
                 }
                 
