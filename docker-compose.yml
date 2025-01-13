@@ -1,0 +1,25 @@
+version: '3'
+services:
+  web:
+    build: .
+    restart: always
+    environment:
+      - FLASK_ENV=production
+      - FLASK_APP=app.py
+    volumes:
+      - ./:/app
+    ports:
+      - "5000:5000"
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./static:/app/static
+    depends_on:
+      - web
+    restart: always

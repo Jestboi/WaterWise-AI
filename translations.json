@@ -1,0 +1,22 @@
+{
+    "welcome": {
+        "en": "Welcome",
+        "tr": "Hoş geldiniz"
+    },
+    "water_conservation": {
+        "en": "Water Conservation",
+        "tr": "Su Koruma"
+    },
+    "chat_placeholder": {
+        "en": "Ask about water conservation...",
+        "tr": "Su koruma hakkında soru sormak..."
+    },
+    "send": {
+        "en": "Send",
+        "tr": "Gönder"
+    },
+    "error_message": {
+        "en": "An error occurred",
+        "tr": "Bir hata oluştu"
+    }
+}

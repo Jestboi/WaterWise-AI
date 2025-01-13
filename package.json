@@ -1,0 +1,23 @@
+{
+  "name": "water-conservation-chat",
+  "version": "1.0.0",
+  "description": "Water Conservation AI Chat Application",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css",
+    "watch:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch"
+  },
+  "keywords": [
+    "water",
+    "conservation",
+    "ai",
+    "chat"
+  ],
+  "author": "Jestboi",
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17"
+  }
+}

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'components/head.html' %}
+    <title>Detailed Weather and Agricultural Report</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .ag-card {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .ag-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-yellow-50 to-white dark:from-gray-900 dark:to-gray-800 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Back Button -->
+        <a href="{{ url_for('farmers') }}" class="inline-flex items-center mb-6 text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Farmer's Portal
+        </a>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Current Weather Card -->
+            <div class="ag-card bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Current Weather Conditions</h2>
+                    <i class="fas fa-cloud-sun text-yellow-500 text-3xl"></i>
+                </div>
+                <div id="currentWeather" class="space-y-3">
+                    <p class="text-gray-600 dark:text-gray-300">Temperature: <span id="temperature">-</span>°C</p>
+                    <p class="text-gray-600 dark:text-gray-300">Humidity: <span id="humidity">-</span>%</p>
+                    <p class="text-gray-600 dark:text-gray-300">Wind Speed: <span id="windSpeed">-</span> km/h</p>
+                    <p class="text-gray-600 dark:text-gray-300">Weather Description: <span id="weatherDescription">-</span></p>
+                    <p class="text-gray-600 dark:text-gray-300">Soil Temperature: <span id="soilTemperature">-</span>°C</p>
+                    <p class="text-gray-600 dark:text-gray-300">Soil Moisture: <span id="soilMoisture">-</span>%</p>
+                </div>
+            </div>
+
+            <!-- Agricultural Recommendations Card -->
+            <div class="ag-card bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Agricultural Recommendations</h2>
+                    <i class="fas fa-seedling text-green-500 text-3xl"></i>
+                </div>
+                <div id="agriculturalRecommendations" class="space-y-3">
+                    <p class="text-gray-600 dark:text-gray-300">Irrigation Advice: <span id="irrigationRecommendation">-</span></p>
+                    <p class="text-gray-600 dark:text-gray-300">Planting Schedule: <span id="plantingSchedule">-</span></p>
+                    <p class="text-gray-600 dark:text-gray-300">Harvest Alert: <span id="harvestAlert">-</span></p>
+                </div>
+            </div>
+
+            <!-- 7-Day Forecast Card -->
+            <div class="ag-card bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">7-Day Weather Forecast</h2>
+                    <i class="fas fa-calendar-week text-blue-500 text-3xl"></i>
+                </div>
+                <div id="sevenDayForecast" class="space-y-2">
+                    <!-- Forecast days will be dynamically populated -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Weather and Crop Charts -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div class="ag-card bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">Temperature Trend</h2>
+                <canvas id="temperatureChart"></canvas>
+            </div>
+            <div class="ag-card bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">Precipitation Amount</h2>
+                <canvas id="precipitationChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Geolocation and weather data fetching
+        async function fetchWeatherData() {
+            try {
+                // Try to get user's location
+                const position = await new Promise((resolve, reject) => {
+                    if ("geolocation" in navigator) {
+                        navigator.geolocation.getCurrentPosition(resolve, 
+                            (error) => {
+                                console.error(`Geolocation error: ${error.message}`);
+                                reject(error);
+                            },
+                            {
+                                enableHighAccuracy: true,
+                                timeout: 5000,
+                                maximumAge: 0
+                            }
+                        );
+                    } else {
+                        reject(new Error("Geolocation not supported"));
+                    }
+                });
+
+                // Fetch weather data with user's coordinates
+                const response = await fetch(`/api/weather-details?lat=${position.coords.latitude}&lon=${position.coords.longitude}`);
+                
+                if (!response.ok) {
+                    // Handle HTTP errors
+                    const errorText = await response.text();
+                    console.error('Full error response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                }
+
+                const result = await response.json();
+
+                // Check if the request was successful
+                if (!result.success) {
+                    console.error('API returned error:', result);
+                    throw new Error(result.error || 'Unknown error occurred');
+                }
+
+                const data = result.data;
+
+                // Defensive checks before accessing data
+                if (!data || !data.current) {
+                    throw new Error('Invalid weather data structure');
+                }
+
+                // Update current weather with fallback values
+                document.getElementById('temperature').textContent = 
+                    data.current.temperature !== undefined ? data.current.temperature : 'N/A';
+                document.getElementById('humidity').textContent = 
+                    data.current.humidity !== undefined ? data.current.humidity : 'N/A';
+                document.getElementById('windSpeed').textContent = 
+                    data.current.windSpeed !== undefined ? data.current.windSpeed : 'N/A';
+                document.getElementById('weatherDescription').textContent = 
+                    data.current.description !== undefined ? data.current.description : 'N/A';
+                document.getElementById('soilTemperature').textContent = 
+                    data.current.soilTemperature !== undefined ? data.current.soilTemperature : 'N/A';
+                document.getElementById('soilMoisture').textContent = 
+                    data.current.soilMoisture !== undefined ? data.current.soilMoisture : 'N/A';
+
+                // Update agricultural recommendations with fallback
+                document.getElementById('irrigationRecommendation').textContent = 
+                    data.recommendations?.irrigation || 'No specific recommendations';
+                document.getElementById('plantingSchedule').textContent = 
+                    data.recommendations?.planting || 'No specific recommendations';
+                document.getElementById('harvestAlert').textContent = 
+                    data.recommendations?.harvest || 'No specific recommendations';
+
+                // Populate 7-day forecast
+                const forecastContainer = document.getElementById('sevenDayForecast');
+                forecastContainer.innerHTML = ''; // Clear previous forecast
+                data.forecast.forEach(day => {
+                    const dayElement = document.createElement('div');
+                    dayElement.innerHTML = `
+                        <div class="flex justify-between items-center border-b pb-2 mb-2">
+                            <div class="flex-1">
+                                <span class="font-medium block">${day.date}</span>
+                                <span class="text-sm text-gray-600">Max: ${day.temperature_max}°C | Min: ${day.temperature_min}°C</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="${day.icon} text-2xl mr-3"></i>
+                                <div>
+                                    <span class="block text-sm">Precip: ${day.precipitation_prob}%</span>
+                                    <span class="block text-sm">UV: ${day.uv_index}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    forecastContainer.appendChild(dayElement);
+                });
+
+                // Temperature Chart
+                new Chart(document.getElementById('temperatureChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.temperatureTrend.labels,
+                        datasets: [{
+                            label: 'Average Temperature (°C)',
+                            data: data.temperatureTrend.data,
+                            borderColor: 'rgb(255, 99, 132)',
+                            tension: 0.1
+                        }]
+                    }
+                });
+
+                // Precipitation Chart
+                new Chart(document.getElementById('precipitationChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.precipitationData.labels,
+                        datasets: [{
+                            label: 'Precipitation Amount (mm)',
+                            data: data.precipitationData.data,
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)'
+                        }]
+                    }
+                });
+
+            } catch (error) {
+                console.error('Failed to fetch weather data:', error);
+                
+                // Fallback UI for location or data fetch errors
+                const currentWeatherContainer = document.getElementById('currentWeather');
+                const recommendationsContainer = document.getElementById('agriculturalRecommendations');
+                const forecastContainer = document.getElementById('sevenDayForecast');
+
+                // Try to parse the error message if it's a JSON
+                let errorMessage = error.message;
+                try {
+                    const errorDetails = JSON.parse(error.message);
+                    errorMessage = errorDetails.error || errorDetails.details || 'Unknown error';
+                } catch (parseError) {
+                    // If not JSON, use the original error message
+                }
+
+                // Clear existing content
+                currentWeatherContainer.innerHTML = `
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                        <strong class="font-bold">Weather Data Error</strong>
+                        <span class="block sm:inline">Unable to fetch weather information.</span>
+                        <p class="text-sm text-red-500 mt-1">${errorMessage}</p>
+                        <div class="mt-2">
+                            <button onclick="fetchWeatherData()" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition">
+                                Try Again
+                            </button>
+                            <button onclick="showLocationSettings()" class="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition ml-2">
+                                Location Settings
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                // Clear recommendations and forecast
+                recommendationsContainer.innerHTML = `
+                    <div class="text-gray-600">Unable to generate recommendations</div>
+                `;
+                forecastContainer.innerHTML = `
+                    <div class="text-gray-600">Unable to load forecast</div>
+                `;
+            }
+        }
+
+        // Show location settings guidance
+        function showLocationSettings() {
+            alert('Please enable location services in your browser settings:\n\n1. Check browser permissions\n2. Ensure GPS/Location is turned on\n3. Refresh the page');
+        }
+
+        // Fetch data when page loads
+        document.addEventListener('DOMContentLoaded', fetchWeatherData);
+    </script>
+</body>
+</html>

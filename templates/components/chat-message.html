@@ -1,0 +1,20 @@
+<!-- Chat message template -->
+<div class="message {{ 'user-message' if not is_bot else 'bot-message' }} animate-fade-in">
+    <div class="flex items-start {{ 'flex-row-reverse' if not is_bot }}">
+        <div class="flex-shrink-0">
+            <div class="w-8 h-8 rounded-full {{ 'bg-blue-500' if is_bot else 'bg-green-500' }} flex items-center justify-center">
+                <i class="fas {{ 'fa-robot' if is_bot else 'fa-user' }} text-white"></i>
+            </div>
+        </div>
+        <div class="mx-3">
+            <p>{{ message }}</p>
+            {% if is_bot %}
+            <div class="mt-2 flex justify-end space-x-2">
+                <button onclick="copyToClipboard(this)" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

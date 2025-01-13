@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'components/head.html' %}
+    <title>For Farmers - Water Conservation AI</title>
+    <style>
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            backdrop-filter: blur(4px);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 51;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        @keyframes modalSlideIn {
+            from { transform: translate(-50%, -60%); opacity: 0; }
+            to { transform: translate(-50%, -50%); opacity: 1; }
+        }
+
+        /* Advanced Farming Page Styles */
+        .farm-card {
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .farm-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .farm-card:hover::before {
+            opacity: 1;
+        }
+
+        .farm-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .farm-icon {
+            transition: transform 0.3s ease, color 0.3s ease;
+        }
+
+        .farm-card:hover .farm-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .animated-background {
+            background: linear-gradient(-45deg, #f0f9ff, #e6f2ff, #d1e8ff, #b3d7ff);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .crop-health-indicator {
+            position: relative;
+            width: 100%;
+            height: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #welcomeModal {
+        transition: all 0.5s ease-in-out;
+    }
+        .crop-health-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(to right, #4caf50, #8bc34a);
+            transition: width 0.5s ease;
+        }
+
+        .water-drop-animation {
+            animation: waterDrop 1.5s infinite;
+        }
+
+        @keyframes waterDrop {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .farm-alert {
+            position: relative;
+            overflow: hidden;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .farm-alert::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(245, 158, 11, 0.1) 10px,
+                rgba(245, 158, 11, 0.1) 20px
+            );
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/farmers_background.css') }}">
+</head>
+<body class="min-h-screen bg-gradient-to-b from-yellow-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col">
+    <!-- Theme toggle and feedback buttons -->
+<div class="fixed top-6 right-6 z-50 flex items-center space-x-4">
+    <!-- Theme toggle button -->
+    <button id="theme-toggle" class="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110">
+        <i class="fas fa-sun text-xl text-yellow-500 dark:text-yellow-400 transition-transform duration-500 rotate-0 dark:rotate-[360deg] dark:opacity-0"></i>
+        <i class="fas fa-moon text-xl text-blue-500 dark:text-blue-400 absolute transition-transform duration-500 rotate-90 dark:rotate-0 opacity-0 dark:opacity-100"></i>
+    </button>
+</div>
+    
+   <!-- Full-Screen Welcome Modal -->
+   <div id="welcomeModal" class="fixed inset-0 z-50 from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900 flex items-center justify-center backdrop-blur-sm bg-opacity-30 animate-fade-in">
+    <div class="max-w-2xl w-full bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-10 text-center transform transition-all duration-500 ease-in-out animate-bounce-in">
+        <div class="mb-8">
+            <i class="fas fa-seedling text-6xl text-green-600 dark:text-green-400 mb-4 block animate-pulse"></i>
+            <h1 class="text-4xl font-bold text-green-800 dark:text-green-200 mb-4 animate-slide-in-right">
+                Welcome, Farmer!
+            </h1>
+            <p class="text-xl text-gray-600 dark:text-gray-300 mb-8 animate-slide-in-left">
+                Choose your path for agricultural water management
+            </p>
+            <div class="flex justify-center space-x-6">
+                <button 
+                    onclick="startExploring()" 
+                    class="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-2xl transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 animate-slide-in-bottom"
+                >
+                    <i class="fas fa-tools"></i>
+                    <span>Explore Tools</span>
+                </button>
+                
+                <button 
+                    onclick="startAIAssistance()" 
+                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-4 rounded-2xl transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 animate-slide-in-bottom delay-200"
+                >
+                    <i class="fas fa-robot"></i>
+                    <span>AI Assistance</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Back button -->
+    <a href="{{ url_for('index') }}" class="fixed top-6 left-6 px-5 py-2.5 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-arrow-left text-yellow-500 dark:text-yellow-400 group-hover:-translate-x-1 transition-transform duration-300"></i>
+            <span class="bg-gradient-to-r from-yellow-500 to-yellow-600 dark:from-yellow-400 dark:to-yellow-500 bg-clip-text text-transparent font-medium">Return Home</span>
+        </div>
+    </a>
+
+    <!-- Main content -->
+    <main class="container mx-auto px-4 py-12 flex-grow">
+        <div class="max-w-6xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-12 relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-r from-yellow-100 to-yellow-200 dark:from-gray-800 dark:to-gray-900 opacity-50 rounded-2xl transform -skew-y-3"></div>
+                <div class="relative z-10 py-10 px-6">
+                    <div class="max-w-3xl mx-auto">
+                        <h1 class="text-4xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-yellow-400 dark:from-yellow-400 dark:to-yellow-200 leading-tight tracking-tight">
+                            Smart Agricultural Water Management
+                        </h1>
+                        <p class="text-lg font-medium text-gray-800 dark:text-gray-100 max-w-2xl mx-auto mb-6 leading-relaxed">
+                            Empowering farmers with intelligent solutions for sustainable water usage
+                        </p>
+                        <div class="flex justify-center space-x-3">
+                            <a href="/farmer-chat" class="inline-flex items-center px-6 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg transition-colors duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 dark:bg-yellow-500 dark:hover:bg-yellow-600">
+                                <i class="fas fa-comments mr-2 text-sm"></i>
+                                Expert Help
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Features Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                <!-- Weather Widget -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow farm-card">
+                    <div class="flex items-center space-x-4 mb-4">
+                        <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center farm-icon">
+                            <i class="fas fa-cloud-sun text-yellow-500 dark:text-yellow-400 text-2xl"></i>
+                        </div>
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Weather Forecast</h2>
+                    </div>
+                    <div class="space-y-4" id="weather-widget">
+                        <!-- Current Weather -->
+                        <div class="bg-yellow-50 dark:bg-gray-700 p-4 rounded-xl farm-alert">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-medium text-gray-900 dark:text-gray-100">Current Weather</h3>
+                                <span id="current-time" class="text-sm text-gray-700 dark:text-gray-300"></span>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <div id="weather-icon" class="text-4xl text-yellow-500 dark:text-yellow-400 water-drop-animation">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </div>
+                                <div>
+                                    <div id="current-temp" class="text-2xl font-bold text-gray-900 dark:text-gray-100">--°C</div>
+                                    <div id="weather-desc" class="text-gray-800 dark:text-gray-200">Loading...</div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 mt-4 text-sm">
+                                <div class="text-center">
+                                    <div class="text-gray-700 dark:text-gray-300">Humidity</div>
+                                    <div id="humidity" class="font-medium text-gray-900 dark:text-gray-100">--%</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-gray-700 dark:text-gray-300">Wind</div>
+                                    <div id="wind-speed" class="font-medium text-gray-900 dark:text-gray-100">-- km/h</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-gray-700 dark:text-gray-300">Rain</div>
+                                    <div id="rain-chance" class="font-medium text-gray-900 dark:text-gray-100">--%</div>
+                                </div>
+                            </div>
+                            <div id="location-info" class="mt-2 text-sm text-gray-800 dark:text-gray-200"></div>
+                        </div>
+                        <!-- 3-Day Forecast -->
+                        <div class="bg-yellow-50 dark:bg-gray-700 p-4 rounded-xl">
+                            <h3 class="font-medium text-gray-900 dark:text-gray-100 mb-3">3-Day Forecast</h3>
+                            <div class="grid grid-cols-3 gap-2" id="forecast-container">
+                                <!-- Forecast items will be added here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Regional Insights -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow farm-card">
+                    <div class="flex items-center space-x-4 mb-4">
+                        <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center farm-icon">
+                            <i class="fas fa-map-marker-alt text-yellow-500 dark:text-yellow-400 text-2xl"></i>
+                        </div>
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Regional Insights</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="bg-yellow-50 dark:bg-gray-700 p-4 rounded-xl farm-alert">
+                            <h3 class="font-medium text-gray-900 dark:text-gray-100 mb-2">Today's Recommendation</h3>
+                            <p class="text-gray-800 dark:text-gray-200" id="weather-recommendation">Loading...</p>
+                        </div>
+                        <div class="bg-yellow-50 dark:bg-gray-700 p-4 rounded-xl">
+                            <h3 class="font-medium text-gray-900 dark:text-gray-100 mb-2">Crop Health</h3>
+                            <div class="crop-health-indicator mb-2">
+                                <div class="crop-health-progress" style="width: 75%"></div>
+                            </div>
+                            <p class="text-sm text-gray-800 dark:text-gray-200">Crop health: Good (75%)</p>
+                        </div>
+                        <div class="bg-yellow-50 dark:bg-gray-700 p-4 rounded-xl farm-alert">
+                            <h3 class="font-medium text-gray-900 dark:text-gray-100 mb-2">Dam Capacity</h3>
+                            <p class="text-gray-800 dark:text-gray-200" id="dam-status">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expert Chat -->
+<div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow farm-card overflow-hidden relative">
+    <div class="absolute top-0 right-0 w-32 h-32 bg-yellow-100 dark:bg-yellow-900 rounded-full transform translate-x-1/2 -translate-y-1/2 opacity-20"></div>
+    
+    <div class="relative z-10">
+        <div class="flex items-center space-x-4 mb-4">
+            <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center farm-icon">
+                <i class="fas fa-comments text-yellow-500 dark:text-yellow-400 text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">AI Farming Assistant</h2>
+        </div>
+        
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-yellow-50 dark:bg-yellow-900/30 p-3 rounded-lg text-center">
+                <i class="fas fa-tint text-2xl text-yellow-600 dark:text-yellow-400 mb-2"></i>
+                <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Water Management</h3>
+            </div>
+            <div class="bg-yellow-50 dark:bg-yellow-900/30 p-3 rounded-lg text-center">
+                <i class="fas fa-seedling text-2xl text-green-600 dark:text-green-400 mb-2"></i>
+                <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Crop Advice</h3>
+            </div>
+            <div class="bg-yellow-50 dark:bg-yellow-900/30 p-3 rounded-lg text-center">
+                <i class="fas fa-chart-line text-2xl text-blue-600 dark:text-blue-400 mb-2"></i>
+                <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Resource Optimization</h3>
+            </div>
+        </div>
+        
+        <p class="text-gray-600 dark:text-gray-300 mb-6 text-center">
+            Get instant, personalized solutions for your agricultural challenges
+        </p>
+        
+        <div class="flex flex-col space-y-4 justify-center items-center">
+            <a href="/farmer-chat" class="inline-flex items-center px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl transition-all duration-300 space-x-2 water-drop-animation transform hover:scale-105 hover:shadow-lg">
+                <i class="fas fa-comments mr-2"></i>
+                Start Conversation
+            </a>
+            <a href="{{ url_for('graph_techniques') }}" class="inline-flex items-center px-8 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl transition-all duration-300 space-x-2 water-drop-animation transform hover:scale-105 hover:shadow-lg">
+                <i class="fas fa-chart-line mr-2"></i>
+                Graph Generator
+            </a>
+            <a href="/water-tax" class="inline-flex items-center px-10 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl transition-all duration-300 space-x-2 water-drop-animation transform hover:scale-105 hover:shadow-lg">
+                <i class="fas fa-file-invoice-dollar mr-2"></i>
+                Control Bill Info
+            </a>
+        </div>
+    </div>
+</div>
+            </div>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script>
+        // Modal functionality
+        window.addEventListener('DOMContentLoaded', (event) => {
+            if (!localStorage.getItem('farmerAssistantChoice')) {
+                showModal();
+            }
+        });
+
+        function showModal() {
+            document.getElementById('modalOverlay').style.display = 'block';
+            document.getElementById('welcomeModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+            document.getElementById('welcomeModal').style.display = 'none';
+            localStorage.setItem('farmerAssistantChoice', 'no');
+        }
+
+        function redirectToChat() {
+            localStorage.setItem('farmerAssistantChoice', 'yes');
+            window.location.href = '/farmer-chat';
+        }
+
+        // Weather widget functionality
+        function updateWeather() {
+            const currentTime = document.getElementById('current-time');
+            const weatherIcon = document.getElementById('weather-icon');
+            const currentTemp = document.getElementById('current-temp');
+            const weatherDesc = document.getElementById('weather-desc');
+            const humidity = document.getElementById('humidity');
+            const windSpeed = document.getElementById('wind-speed');
+            const rainChance = document.getElementById('rain-chance');
+            const weatherRecommendation = document.getElementById('weather-recommendation');
+            const forecastContainer = document.getElementById('forecast-container');
+            const locationInfo = document.getElementById('location-info');  
+
+            // Update current time
+            const now = new Date();
+            currentTime.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Fetch weather data
+            fetch('/get-weather')
+                .then(response => response.json())
+                .then(locationData => {
+                    // Konum bilgilerini göster
+                    locationInfo.innerHTML = `
+                        <div class="text-sm text-gray-600 dark:text-gray-300">
+                            <i class="fas fa-map-marker-alt mr-2"></i>
+                            ${locationData.location}
+                        </div>
+                    `;
+
+                    const { latitude, longitude } = locationData;
+                    
+                    // Open-Meteo API call for current weather and forecast
+                    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=temperature_2m,precipitation_probability,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`;
+                    
+                    return fetch(weatherUrl)
+                        .then(response => response.json())
+                        .then(weatherData => {
+                            // Current weather
+                            const currentWeather = weatherData.current_weather;
+                            const temp = Math.round(currentWeather.temperature);
+                            const windSpeedValue = Math.round(currentWeather.windspeed);
+                            
+                            // Weather description mapping
+                            const weatherCodeMap = {
+                                0: 'Clear sky',
+                                1: 'Mainly clear', 
+                                2: 'Partly cloudy',
+                                3: 'Overcast',
+                                45: 'Foggy',
+                                51: 'Light drizzle',
+                                53: 'Drizzle',
+                                61: 'Rain',
+                                71: 'Snow',
+                                95: 'Thunderstorm'
+                            };
+                            
+                            const description = weatherCodeMap[currentWeather.weathercode] || 'Unknown';
+                            
+                            // Weather icon mapping
+                            const weatherIconMap = {
+                                0: 'fa-sun',
+                                1: 'fa-cloud-sun',
+                                2: 'fa-cloud-sun',
+                                3: 'fa-cloud',
+                                45: 'fa-smog',
+                                51: 'fa-cloud-rain',
+                                53: 'fa-cloud-rain',
+                                61: 'fa-cloud-showers-heavy',
+                                71: 'fa-snowflake',
+                                95: 'fa-bolt'
+                            };
+                            
+                            const iconClass = weatherIconMap[currentWeather.weathercode] || 'fa-cloud';
+                            
+                            // Update UI
+                            currentTemp.textContent = `${temp}°C`;
+                            weatherDesc.textContent = description;
+                            weatherIcon.innerHTML = `<i class="fas ${iconClass} text-yellow-500 dark:text-yellow-400"></i>`;
+                            
+                            // Wind and precipitation
+                            windSpeed.textContent = `${windSpeedValue} km/h`;
+                            
+                            // Precipitation probability (next 24 hours)
+                            const precipProb = Math.max(...weatherData.hourly.precipitation_probability.slice(0, 24));
+                            rainChance.textContent = `${Math.round(precipProb)}%`;
+                            
+                            // Humidity (not directly available, using precipitation as proxy)
+                            humidity.textContent = `${Math.round(precipProb / 2)}%`;
+                            
+                            // Weather recommendation
+                            let recommendation = "No specific recommendation";
+                            if (temp < 10) recommendation = "Protect crops from cold, use frost protection";
+                            else if (temp > 35) recommendation = "Increase irrigation, protect crops from heat";
+                            else if (precipProb > 50) recommendation = "Prepare for potential rain, adjust irrigation";
+                            else recommendation = "Moderate conditions, maintain regular crop care";
+                            
+                            weatherRecommendation.textContent = recommendation;
+                            
+                            // 3-day forecast
+                            const forecastDays = weatherData.daily;
+                            forecastContainer.innerHTML = forecastDays.time.slice(1, 4).map((day, index) => {
+                                const dayName = new Date(day).toLocaleDateString('en-US', { weekday: 'short' });
+                                const maxTemp = Math.round(forecastDays.temperature_2m_max[index + 1]);
+                                const minTemp = Math.round(forecastDays.temperature_2m_min[index + 1]);
+                                const precipProbDay = Math.round(forecastDays.precipitation_probability_max[index + 1]);
+                                
+                                // Determine icon based on precipitation probability
+                                const dayIconClass = precipProbDay > 50 ? 'fa-cloud-rain' : 
+                                             precipProbDay > 20 ? 'fa-cloud-sun' : 'fa-sun';
+                                
+                                return `
+                                    <div class="text-center">
+                                        <div class="text-sm text-gray-500">${dayName}</div>
+                                        <i class="fas ${dayIconClass} text-xl text-yellow-500 dark:text-yellow-400 my-2"></i>
+                                        <div class="text-sm">${minTemp}°C / ${maxTemp}°C</div>
+                                    </div>
+                                `;
+                            }).join('');
+                        })
+                        .catch(error => {
+                            console.error('Weather fetch error:', error);
+                            currentTemp.textContent = 'N/A';
+                            weatherDesc.textContent = 'Weather data unavailable';
+                            weatherRecommendation.textContent = 'Network error. Please try again later.';
+                        });
+                })
+                .catch(error => {
+                    console.error('Location fetch error:', error);
+                    currentTemp.textContent = 'N/A';
+                    weatherDesc.textContent = 'Location unavailable';
+                    weatherRecommendation.textContent = 'Unable to determine location.';
+                });
+        }
+
+        // Regional insights functionality
+        async function loadRegionalInsights() {
+            try {
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.getCurrentPosition(async function(position) {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        
+                        // Fetch regional insights
+                        const response = await fetch(`/api/regional-insights?lat=${lat}&lon=${lon}`);
+                        const data = await response.json();
+                        
+                        // Update weather recommendation
+                        const weatherRecommendation = document.getElementById('weather-recommendation');
+                        if (data.weather && data.weather.recommendation) {
+                            weatherRecommendation.textContent = data.weather.recommendation;
+                        } else {
+                            weatherRecommendation.textContent = "Unable to load weather recommendation";
+                        }
+                        
+                        // Update dam status
+                        const damStatus = document.getElementById('dam-status');
+                        if (data.dam && data.dam.data) {
+                            const damData = data.dam.data;
+                            damStatus.innerHTML = `
+                                <div>Capacity: ${damData.capacity}%</div>
+                                <div class="text-sm ${damData.trend === 'decreasing' ? 'text-yellow-500' : 'text-green-500'}">
+                                    Trend: ${damData.trend}
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    Last updated: ${new Date(damData.last_updated).toLocaleString()}
+                                </div>
+                            `;
+                        } else {
+                            damStatus.textContent = "Unable to load dam status";
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error("Error loading regional insights:", error);
+                document.getElementById('weather-recommendation').textContent = "Error loading recommendations";
+                document.getElementById('dam-status').textContent = "Error loading dam status";
+            }
+        }
+
+        // Initialize weather and insights
+        updateWeather();
+        loadRegionalInsights();
+        
+        // Update every 30 minutes
+        setInterval(updateWeather, 30 * 60 * 1000);
+        setInterval(loadRegionalInsights, 30 * 60 * 1000);
+    </script>
+    <script>function startExploring() {
+        const welcomeModal = document.getElementById('welcomeModal');
+        welcomeModal.classList.add('opacity-0', 'scale-90');
+        setTimeout(() => {
+            welcomeModal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 500);
+    }
+
+    function startAIAssistance() {
+        window.location.href = '/farmer-chat';
+    }
+
+    // Ensure modal is visible on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const welcomeModal = document.getElementById('welcomeModal');
+        welcomeModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    });
+    </script>
+</body>
+</html>

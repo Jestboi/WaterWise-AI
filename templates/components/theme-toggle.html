@@ -1,0 +1,35 @@
+<!-- Theme toggle button -->
+<button id="theme-toggle" class="fixed top-6 right-6 w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 z-50 relative">
+    <i class="fas fa-sun text-xl text-yellow-500 dark:text-yellow-400 transition-transform duration-500 rotate-0 dark:rotate-[360deg] dark:opacity-0 absolute"></i>
+    <i class="fas fa-moon text-xl text-blue-500 dark:text-blue-400 absolute transition-transform duration-500 rotate-90 dark:rotate-0 opacity-0 dark:opacity-100"></i>
+</button>
+
+<style>
+    #theme-toggle {
+        position: relative;
+        overflow: hidden;
+    }
+    #theme-toggle i {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        transition: all 0.5s ease;
+    }
+    #theme-toggle i.fa-sun {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    #theme-toggle i.fa-moon {
+        opacity: 0;
+        transform: translate(-50%, -50%) rotate(90deg);
+    }
+    #theme-toggle.dark i.fa-sun {
+        opacity: 0;
+        transform: translate(-50%, -50%) rotate(90deg);
+    }
+    #theme-toggle.dark i.fa-moon {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+</style>

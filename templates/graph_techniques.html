@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Techniques - Data Visualization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/graph_background.css') }}">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'data-primary': '#3B82F6',
+                        'data-secondary': '#10B981',
+                        'data-accent': '#8B5CF6'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .chart-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+        }
+        .graph-card {
+            transition: all 0.3s ease;
+            transform-origin: center;
+        }
+        .graph-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col graph-bg-pattern">
+    <!-- Theme toggle and feedback buttons -->
+<div class="fixed top-6 right-6 z-50 flex items-center space-x-4">
+    <!-- Theme toggle button -->
+    <button id="theme-toggle" class="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110">
+        <i class="fas fa-sun text-xl text-yellow-500 dark:text-yellow-400 transition-transform duration-500 rotate-0 dark:rotate-[360deg] dark:opacity-0"></i>
+        <i class="fas fa-moon text-xl text-blue-500 dark:text-blue-400 absolute transition-transform duration-500 rotate-90 dark:rotate-0 opacity-0 dark:opacity-100"></i>
+    </button>
+</div>
+    
+    <a href="{{ url_for('index') }}" class="fixed top-6 left-6 px-5 py-2.5 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group z-50">
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-arrow-left text-blue-500 dark:text-blue-400 group-hover:-translate-x-1 transition-transform duration-300"></i>
+            <span class="bg-gradient-to-r from-blue-500 to-purple-500 dark:from-blue-400 dark:to-purple-500 bg-clip-text text-transparent font-medium">Return Home</span>
+        </div>
+    </a>
+
+    <div class="container mx-auto px-4 py-12">
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-500">
+                Interactive Data Visualization Techniques
+            </h1>
+            <p class="mt-4 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                Explore advanced graph techniques using Chart.js. Discover how different visualization methods can reveal insights from your data.
+            </p>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+            <!-- Line Chart -->
+            <a href="{{ url_for('generate_graph') }}" class="block">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg graph-card">
+                    <h2 class="text-xl font-semibold mb-3 text-blue-600 dark:text-blue-400">
+                        <i class="fas fa-chart-line mr-2"></i>Time Series Analysis
+                    </h2>
+                    <div class="chart-container">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Bar Chart -->
+            <a href="{{ url_for('generate_graph') }}" class="block">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg graph-card">
+                    <h2 class="text-xl font-semibold mb-3 text-green-600 dark:text-green-400">
+                        <i class="fas fa-chart-bar mr-2"></i>Comparative Data
+                    </h2>
+                    <div class="chart-container">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Radar Chart -->
+            <a href="{{ url_for('generate_graph') }}" class="block">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg graph-card">
+                    <h2 class="text-xl font-semibold mb-3 text-purple-600 dark:text-purple-400">
+                        <i class="fas fa-bullseye mr-2"></i>Multi-Dimensional Analysis
+                    </h2>
+                    <div class="chart-container">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Pie Chart -->
+            <a href="{{ url_for('generate_graph') }}" class="block">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg graph-card">
+                    <h2 class="text-xl font-semibold mb-3 text-pink-600 dark:text-pink-400">
+                        <i class="fas fa-chart-pie mr-2"></i>Proportion Distribution
+                    </h2>
+                    <div class="chart-container">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Line Chart
+        new Chart(document.getElementById('lineChart'), {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Sales Growth',
+                    data: [12, 19, 3, 5, 2, 3],
+                    borderColor: '#3B82F6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Bar Chart
+        new Chart(document.getElementById('barChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+                datasets: [{
+                    label: 'Color Preference',
+                    data: [12, 19, 3, 5, 2, 3],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 206, 86, 0.6)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(153, 102, 255, 0.6)',
+                        'rgba(255, 159, 64, 0.6)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Radar Chart
+        new Chart(document.getElementById('radarChart'), {
+            type: 'radar',
+            data: {
+                labels: ['Eating', 'Drinking', 'Sleeping', 'Designing', 'Coding', 'Cycling', 'Running'],
+                datasets: [{
+                    label: 'Personal Performance',
+                    data: [65, 59, 90, 81, 56, 55, 40],
+                    backgroundColor: 'rgba(128, 90, 213, 0.2)',
+                    borderColor: '#8B5CF6',
+                    pointBackgroundColor: '#8B5CF6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Pie Chart
+        new Chart(document.getElementById('pieChart'), {
+            type: 'pie',
+            data: {
+                labels: ['Red', 'Blue', 'Yellow'],
+                datasets: [{
+                    label: 'Color Distribution',
+                    data: [300, 50, 100],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 206, 86, 0.6)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+    <script src="{{ url_for('static', filename='js/graph_theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'components/head.html' %}
+    <title>Admin Login - Water Conservation AI</title>
+    <style>
+        .neo-pattern {
+            background: 
+                radial-gradient(circle at 100% 0%, rgba(0, 191, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 0% 100%, rgba(147, 51, 234, 0.15) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .dark .neo-pattern {
+            background: 
+                radial-gradient(circle at 100% 0%, rgba(0, 191, 255, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 0% 100%, rgba(147, 51, 234, 0.2) 0%, transparent 50%),
+                linear-gradient(to bottom, rgba(17, 24, 39, 0.95), rgba(17, 24, 39, 0.95));
+            background-attachment: fixed;
+        }
+
+        .neo-card {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.1),
+                0 2px 4px -1px rgba(0, 0, 0, 0.06),
+                0 0 0 1px rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .dark .neo-card {
+            background: rgba(17, 24, 39, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.2),
+                0 2px 4px -1px rgba(0, 0, 0, 0.1),
+                0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+
+        .neo-input {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(209, 213, 219, 0.5);
+            transition: all 0.2s ease;
+        }
+
+        .dark .neo-input {
+            background: rgba(17, 24, 39, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .neo-input:focus {
+            border-color: #60A5FA;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+        }
+
+        .neo-button {
+            transition: all 0.2s ease;
+        }
+
+        .neo-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+        }
+
+        .dark .neo-button:hover {
+            box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2);
+        }
+
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<script src="{{ url_for('static', filename='theme.js') }}"></script>
+<body class="min-h-screen neo-pattern flex items-center justify-center p-4">
+    <div class="fixed top-6 right-6 z-50 flex items-center space-x-4">
+        <!-- Theme toggle button -->
+        <button id="theme-toggle" class="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110">
+            <i class="fas fa-sun text-xl text-yellow-500 dark:text-yellow-400 transition-transform duration-500 rotate-0 dark:rotate-[360deg] dark:opacity-0"></i>
+            <i class="fas fa-moon text-xl text-blue-500 dark:text-blue-400 absolute transition-transform duration-500 rotate-90 dark:rotate-0 opacity-0 dark:opacity-100"></i>
+        </button>
+    </div>
+    <!-- Back button -->
+    <a href="{{ url_for('index') }}" class="fixed top-6 left-6 px-5 py-2.5 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-arrow-left text-blue-500 dark:text-blue-400 group-hover:-translate-x-1 transition-transform duration-300"></i>
+            <span class="bg-gradient-to-r from-blue-500 to-purple-500 dark:from-blue-400 dark:to-purple-500 bg-clip-text text-transparent font-medium">Return Home</span>
+        </div>
+    </a>
+    <!-- Login Container -->
+    <div class="w-full max-w-md">
+        <div class="neo-card rounded-2xl p-8 relative overflow-hidden">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center floating">
+                    <i class="fas fa-shield-alt text-white text-2xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Admin Login</h1>
+                <p class="text-gray-600 dark:text-gray-400 text-sm">Secure access to management console</p>
+            </div>
+
+            {% if error %}
+            <div class="mb-6 p-4 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800">
+                <p class="text-red-600 dark:text-red-400 text-sm flex items-center">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    {{ error }}
+                </p>
+            </div>
+            {% endif %}
+
+            <!-- Login Form -->
+            <form method="POST" class="space-y-5">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <!-- Username -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Username</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center">
+                            <i class="fas fa-user text-gray-400"></i>
+                        </span>
+                        <input type="text" name="username" required
+                               class="neo-input w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-200"
+                               placeholder="Enter your username">
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center">
+                            <i class="fas fa-lock text-gray-400"></i>
+                        </span>
+                        <input type="password" name="password" required
+                               class="neo-input w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-200"
+                               placeholder="Enter your password">
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" 
+                        class="neo-button w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-2.5 px-4 rounded-lg mt-6 flex items-center justify-center space-x-2">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Sign In</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

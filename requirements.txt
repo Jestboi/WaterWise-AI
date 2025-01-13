@@ -1,0 +1,77 @@
+# Web Framework and Extensions
+Flask==2.3.2                # Main web framework
+Werkzeug==3.0.1            # WSGI web application library, used by Flask
+Flask-SQLAlchemy==3.0.3    # SQL ORM for Flask
+Flask-Login==0.6.3         # User session management for Flask
+Flask-WTF==1.2.1           # Form validation and CSRF protection
+Jinja2==3.1.3              # Template engine for Flask
+
+# Database and Security
+SQLAlchemy==2.0.25         # SQL toolkit and ORM
+cryptography==41.0.7       # Cryptographic recipes and primitives
+itsdangerous==2.1.2        # Various helpers to pass data securely
+python-dotenv==1.0.0       # Load environment variables from .env file
+
+# PDF Processing
+PyPDF2==3.0.1
+
+# File Processing
+python-magic==0.4.27      # File type detection
+Pillow==10.1.0            # Image processing library
+python-docx==0.8.11
+pytesseract==0.3.9
+Pillow==9.5.0
+
+# Bill Analyzer
+pytesseract==0.3.10
+pdf2image==1.16.3
+opencv-python-headless==4.7.0.72
+numpy==1.24.3
+
+# AI-Powered Bill Analysis
+scikit-learn==1.2.2
+pandas==2.0.1
+numpy==1.24.3
+opencv-python-headless==4.7.0.72
+pytesseract==0.3.10  # OCR fallback
+Pillow==10.1.0      # Image processing
+
+# Machine Learning Bill Analysis
+scikit-learn==1.2.2
+pandas==2.0.1
+joblib==1.2.0
+
+# External API and HTTP Requests
+requests==2.31.0          # HTTP library for making API requests
+
+# Utilities
+bleach==6.1.0            # HTML sanitization
+
+# AWS Integration
+boto3==1.28.11           # AWS SDK for Python
+botocore==1.31.11        # Core functionality for boto3
+s3transfer==0.6.0         # S3 file transfer for boto3
+aws-sam-translator==1.58.0 # AWS SAM translator
+
+# Server
+gunicorn==20.1.0         # Production WSGI HTTP Server
+
+# Testing and Development
+pytest==7.4.4            # Testing framework
+pytest-cov==4.1.0        # Test coverage reporting
+black==23.12.1           # Code formatter
+flake8==6.1.0            # Code linter
+
+# Graph Generation
+matplotlib==3.7.1
+numpy==1.24.3
+openai==0.27.8
+Pillow==10.0.0
+python-dotenv==1.0.0
+boto3==1.28.11
+botocore==1.31.11
+tensorflow==2.12.0
+transformers==4.30.2
+torch==2.0.1
+seaborn==0.12.2
+plotly==5.14.1

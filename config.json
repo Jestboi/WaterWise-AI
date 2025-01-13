@@ -1,0 +1,17 @@
+{
+    "model_name": "meta-llama/Llama-3.2-3B-Instruct",
+    "train_file": "dataset/wc-train.jsonl",
+    "eval_file": "dataset/wc-validate-variations.jsonl",
+    "train_batch_size": 4,
+    "eval_batch_size": 4,
+    "learning_rate": 2e-4,
+    "num_train_epochs": 3,
+    "max_steps": 1000,
+    "warmup_ratio": 0.1,
+    "gradient_accumulation_steps": 4,
+    "max_grad_norm": 0.3,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "lora_r": 16,
+    "output_dir": "./water_conservation_model"
+}

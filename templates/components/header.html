@@ -1,0 +1,21 @@
+<!-- Reusable Header Component -->
+<header class="fixed top-0 left-0 right-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg z-50 border-b border-gray-200 dark:border-gray-700">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="/" class="flex items-center space-x-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+            <i class="fas fa-tint text-2xl"></i>
+            <span class="font-bold text-lg">WaterSmart AI</span>
+        </a>
+        <div class="flex items-center space-x-4">
+            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <i class="fas fa-sun text-yellow-500 dark:hidden text-xl"></i>
+                <i class="fas fa-moon text-blue-400 hidden dark:block text-xl"></i>
+            </button>
+            {% if show_logout %}
+            <a href="/logout" class="flex items-center space-x-2 px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</header>

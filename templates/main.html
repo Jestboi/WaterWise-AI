@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Water Conservation Chat Assistant - Get expert advice on water conservation">
+    {% block head %}
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% endblock %}
+    <title>Chat - Water Conservation AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="{{ url_for('static', filename='js/fileUpload.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/quickTips.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/background.css') }}">
+    <script src="{{ url_for('static', filename='theme.js') }}"></script>
+    <!-- Back button -->
+<a href="{{ url_for('index') }}" class="fixed top-6 left-6 px-5 py-2.5 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+    <div class="flex items-center space-x-2">
+        <i class="fas fa-arrow-left text-blue-500 dark:text-blue-400 group-hover:-translate-x-1 transition-transform duration-300"></i>
+        <span class="bg-gradient-to-r from-blue-500 to-purple-500 dark:from-blue-400 dark:to-purple-500 bg-clip-text text-transparent font-medium">Return Home</span>
+    </div>
+</a>
+    <style>
+        #theme-toggle i {
+            transition: transform 0.3s ease, color 0.3s ease;
+            font-size: 1.4rem;
+        }
+        #theme-toggle i.fa-moon {
+            transform-origin: center;
+            font-size: 1.3rem;
+            transform: rotate(180deg);
+        }
+        #theme-toggle i.fa-sun {
+            opacity: 1;
+            transform: rotate(0deg);
+        }
+        #theme-toggle i.fa-moon {
+            opacity: 0;
+            transform: rotate(-90deg);
+        }
+        #theme-toggle.dark i.fa-sun {
+            opacity: 0;
+            transform: rotate(90deg);
+        }
+        #theme-toggle.dark i.fa-moon {
+            opacity: 1;
+            transform: rotate(0deg);
+        }
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background-color: white;
+            border-radius: 50%;
+            animation: bounce 1.3s linear infinite;
+            opacity: 0.7;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes bounce {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-4px);
+            }
+        }
+        .luxury-pattern {
+            background-image: 
+                radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.1) 0, transparent 100%),
+                radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.1) 0, transparent 100%),
+                linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(243, 244, 246, 0.8) 100%);
+            background-attachment: fixed;
+        }
+
+        .light-theme-bg {
+            background: 
+                linear-gradient(120deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%),
+                linear-gradient(60deg, rgba(80, 97, 155, 0.9) 0%, rgba(80, 97, 155, 0.9) 100%),
+                repeating-linear-gradient(45deg, rgba(59, 130, 246, 0.02) 0px, rgba(59, 130, 246, 0.02) 1px, transparent 1px, transparent 10px),
+                repeating-linear-gradient(135deg, rgba(139, 92, 246, 0.02) 0px, rgba(139, 92, 246, 0.02) 1px, transparent 1px, transparent 10px);
+            background-attachment: fixed;
+        }
+        .typewriter {
+            display: inline-block;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-width: 100%;
+            margin: 0;
+        }
+        .message-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+        /* Theme toggle transitions */
+        #theme-toggle i {
+            position: absolute;
+            transition: transform 0.5s ease, opacity 0.3s ease;
+        }
+        #theme-toggle i.fa-sun {
+            opacity: 1;
+            transform: rotate(0deg);
+        }
+        #theme-toggle i.fa-moon {
+            opacity: 0;
+            transform: rotate(-90deg);
+        }
+        #theme-toggle.dark i.fa-sun {
+            opacity: 0;
+            transform: rotate(90deg);
+        }
+        #theme-toggle.dark i.fa-moon {
+            opacity: 1;
+            transform: rotate(0deg);
+        }
+        .message-status {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-top: 4px;
+            font-size: 0.7rem;
+            gap: 4px;
+        }
+
+        .message-status i {
+            margin-left: -3px;
+        }
+
+        .message-status .tick-container {
+            display: flex;
+            align-items: center;
+            margin-left: 4px;
+        }
+
+        .message-status.sent i {
+            color: #9CA3AF;  /* Gray for sent */
+        }
+
+        .message-status.delivered i {
+            color: #9CA3AF;  /* Gray for delivered */
+        }
+
+        .message-status.read i {
+            color: #60A5FA;  /* Blue for read */
+        }
+        #chat-messages {
+            padding-bottom: 100px;
+        }
+
+        #fixed-input {
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .checkmark-container {
+            position: absolute;
+            bottom: 2px;
+            right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .checkmark-container i {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            transition: color 0.3s ease;
+        }
+
+        .checkmark-container.read i {
+            color: #38bdf8;
+        }
+
+        .checkmark-container i:last-child {
+            position: absolute;
+            right: -6px;
+        }
+
+        .message-container {
+            position: relative;
+            padding-right: 32px;
+        }
+        
+        @keyframes slowBlurFadeIn {
+            0% { 
+                filter: blur(20px); 
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            100% { 
+                filter: blur(0); 
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        body {
+            animation: slowBlurFadeIn 0.5s ease-out forwards;
+        }
+        
+        #initial-view {
+            opacity: 0;
+            animation: slowBlurFadeIn 0.5s ease-out 0.5s forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col">
+    
+     <!-- Theme toggle and feedback buttons -->
+    <div class="fixed top-6 right-6 z-50 flex items-center space-x-4">
+        <!--Feedback button-->
+    <button id="show-feedback" class="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110" aria-label="Give feedback">
+        <i class="fas fa-star text-xl group-hover:animate-pulse"></i>
+    </button>
+    <!-- Theme toggle button -->
+    <button id="theme-toggle" class="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110">
+        <i class="fas fa-sun text-xl text-yellow-500 dark:text-yellow-400 transition-transform duration-500 rotate-0 dark:rotate-[360deg] dark:opacity-0"></i>
+        <i class="fas fa-moon text-xl text-blue-500 dark:text-blue-400 absolute transition-transform duration-500 rotate-90 dark:rotate-0 opacity-0 dark:opacity-100"></i>
+    </button>
+</div>  
+        
+    </div>
+    <!-- Main chat container -->
+    <div class="max-w-screen-xl mx-auto px-4 py-8">
+        <!-- Initial view with welcome message and input -->
+        <div id="initial-view" class="flex flex-col items-center justify-center min-h-[80vh] space-y-8">
+            <!-- Welcome message -->
+            <div class="text-center w-full">
+                <div class="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center animate-bounce">
+                    <i class="fas fa-robot text-white text-3xl"></i>
+                </div>
+                <h1 class="text-4xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-500 to-blue-600 dark:from-blue-400 dark:via-purple-400 dark:to-blue-600 bg-clip-text text-transparent mb-4">
+                    Welcome to WaterWise!
+                </h1>
+                <p class="text-xl text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
+                    Your intelligent water conservation assistant is ready to help. Ask anything about water management, conservation, or analysis.
+                </p>
+            </div>
+
+            <!-- Initial chat input -->
+            <div class="w-full">
+                <form id="chat-form" class="flex items-end space-x-4">
+                    <div class="flex-1 relative">
+                        <!-- File upload preview -->
+                        <div id="file-preview" class="hidden mb-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-file text-blue-500"></i>
+                                    <span class="text-sm text-gray-600 dark:text-gray-300 file-name"></span>
+                                </div>
+                                <button type="button" id="remove-file" class="text-gray-500 hover:text-red-500 transition-colors">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <input type="text" id="user-input" 
+                            class="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 
+                                   text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Type your message...">
+                    </div>
+
+                    <!-- File upload button -->
+                    <label class="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer transition-colors">
+                        <input type="file" id="file-upload" class="hidden" accept=".pdf,.doc,.docx,.txt">
+                        <i class="fas fa-paperclip text-gray-600 dark:text-gray-300"></i>
+                    </label>
+
+                    <button type="submit" id="submit-button" 
+                        class="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl
+                               hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 
+                               transition-all duration-300 hover:scale-105">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Chat messages container -->
+        <div id="chat-messages" class="hidden space-y-4 mb-24 w-full">
+            <!-- Messages will be added here -->
+        </div>
+        
+        <!-- Weather Widget -->
+        <div id="weather-widget" class="fixed top-24 right-6 w-80 z-40">
+                <div id="weather-toggle" class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-3xl">
+                    <div class="p-6 flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div id="weather-icon" class="text-4xl text-white drop-shadow-lg">
+                                <i class="fas fa-cloud"></i>
+                            </div>
+                            <div class="text-white">
+                                <h3 id="weather-location" class="text-lg font-semibold">Tracking Location ...</h3>
+                                <p id="weather-temp" class="text-2xl font-bold">-</p>
+                            </div>
+                        </div>
+                        <div class="text-white">
+                            <i id="weather-chevron" class="fas fa-chevron-down transition-transform duration-300"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="weather-details" class="hidden bg-white dark:bg-gray-800 rounded-b-2xl shadow-2xl overflow-hidden">
+                    <div class="p-6 space-y-4">
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div class="bg-blue-50 dark:bg-gray-700 rounded-xl p-3">
+                                <i class="fas fa-tint text-blue-500 text-xl mb-2"></i>
+                                <p class="text-xs text-gray-600 dark:text-gray-300">Humidity</p>
+                                <p id="weather-humidity" class="font-semibold text-gray-800 dark:text-white">-</p>
+                            </div>
+                            <div class="bg-green-50 dark:bg-gray-700 rounded-xl p-3">
+                                <i class="fas fa-wind text-green-500 text-xl mb-2"></i>
+                                <p class="text-xs text-gray-600 dark:text-gray-300">Wind</p>
+                                <p id="weather-wind" class="font-semibold text-gray-800 dark:text-white">-</p>
+                            </div>
+                            <div class="bg-purple-50 dark:bg-gray-700 rounded-xl p-3">
+                                <i class="fas fa-cloud text-purple-500 text-xl mb-2"></i>
+                                <p class="text-xs text-gray-600 dark:text-gray-300">Clouds</p>
+                                <p id="weather-clouds" class="font-semibold text-gray-800 dark:text-white">-</p>
+                            </div>
+                        </div>
+                        <div class="text-center text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            Last updated: <span id="weather-updated">-</span>
+                        </div>
+                        <p id="weather-recommendation" class="text-center text-sm text-gray-600 dark:text-gray-300"></p>
+                        
+                        <!-- Daily Water Conservation Tip -->
+                        <div class="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-xl">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <i class="fas fa-lightbulb text-blue-500 dark:text-blue-300 text-xl"></i>
+                                <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Daily Water Tip</h4>
+                            </div>
+                            <p id="daily-tip-text" class="text-xs text-gray-600 dark:text-gray-400">
+                                Loading daily tip...
+                            </p>
+                        </div>
+
+                        <!-- Water Outage Information -->
+                        <div class="mt-2 p-3 bg-blue-50 dark:bg-gray-800 rounded-xl border border-blue-200 dark:border-gray-700">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <i class="fas fa-water text-blue-500 dark:text-blue-300 text-xl"></i>
+                                <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Water Service Status</h4>
+                            </div>
+                            <p id="water-outage-info" class="text-xs text-gray-600 dark:text-gray-400 flex items-center">
+                                <svg class="w-4 h-4 mr-2 animate-pulse text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
+                                </svg>
+                                Checking water service status...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+    <!-- Fixed chat input for after chat starts -->
+    <div id="fixed-input" class="hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 mt-8">
+        <div class="max-w-screen-xl mx-auto">
+            <!-- The form will be moved here when chat starts -->
+        </div>
+    </div>
+    <!-- Feedback Popup -->
+    <div id="feedback-popup" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 transform transition-all">
+        <!-- Close button -->
+        <button id="close-feedback" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+        
+        <!-- Popup content -->
+        <div class="text-center mb-6">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <i class="fas fa-star text-white text-2xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-500 to-blue-600 bg-clip-text text-transparent">Your feedback matters</h2>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Help us improve our chat assistant</p>
+        </div>
+
+        <form id="feedback-form" class="space-y-6">
+            <!-- Star Rating -->
+            <div class="flex flex-col items-center space-y-2">
+                <label for="rating" class="text-sm font-medium text-gray-700 dark:text-gray-300">Rate your experience</label>
+                <input type="hidden" id="rating" name="rating" value="">
+                <div class="flex space-x-2" id="star-rating">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="star-rating" value="1" class="hidden">
+                        <span class="text-gray-300 hover:text-yellow-400 transition-colors text-2xl focus:outline-none">★</span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="star-rating" value="2" class="hidden">
+                        <span class="text-gray-300 hover:text-yellow-400 transition-colors text-2xl focus:outline-none">★</span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="star-rating" value="3" class="hidden">
+                        <span class="text-gray-300 hover:text-yellow-400 transition-colors text-2xl focus:outline-none">★</span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="star-rating" value="4" class="hidden">
+                        <span class="text-gray-300 hover:text-yellow-400 transition-colors text-2xl focus:outline-none">★</span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="star-rating" value="5" class="hidden">
+                        <span class="text-gray-300 hover:text-yellow-400 transition-colors text-2xl focus:outline-none">★</span>
+                    </label>
+                </div>
+            </div>
+            <!-- Comment Input -->
+            <div class="space-y-2">
+                <label class="block text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">Your comments</label>
+                <textarea name="comment" rows="4" required
+                    class="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 
+                           text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    placeholder="Share your thoughts..."></textarea>
+            </div>
+            <!-- Name Input -->
+            <div class="space-y-2">
+                <label class="block text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">Your name</label>
+                <input type="text" name="name" required
+                    class="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 
+                           text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter your name...">
+            </div>
+
+            <!-- Email Input -->
+            <div class="space-y-2">
+                <label class="block text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">Email address</label>
+                <input type="email" name="email" required
+                    class="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 
+                           text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter your email...">
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" 
+                class="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl
+                       hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 
+                       transition-all duration-300 transform hover:scale-[1.02]">
+                Submit feedback
+            </button>
+        </form>
+    </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatForm = document.getElementById('chat-form');
+            const input = document.getElementById('user-input');
+            const chatMessages = document.getElementById('chat-messages');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const initialView = document.getElementById('initial-view');
+            const fixedInput = document.getElementById('fixed-input');
+            const themeToggleBtn = document.getElementById('theme-toggle');
+            const sunIcon = themeToggleBtn.querySelector('.fa-sun');
+            const moonIcon = themeToggleBtn.querySelector('.fa-moon');
+            const html = document.documentElement;
+            
+            // Feedback popup functionality
+            const feedbackPopup = document.getElementById('feedback-popup');
+            const closeFeedback = document.getElementById('close-feedback');
+            const feedbackForm = document.getElementById('feedback-form');
+            const starRating = document.getElementById('star-rating');
+            const showFeedbackButton = document.getElementById('show-feedback');
+            let currentRating = 0;
+
+            // Show popup when clicking feedback button
+            showFeedbackButton.addEventListener('click', function() {
+                feedbackPopup.classList.remove('hidden');
+            });
+
+            // Close popup
+            closeFeedback.addEventListener('click', function() {
+                feedbackPopup.classList.add('hidden');
+            });
+
+            // Close on outside click
+            feedbackPopup.addEventListener('click', function(e) {
+                if (e.target === feedbackPopup) {
+                    feedbackPopup.classList.add('hidden');
+                }
+            });
+
+            // Star rating functionality
+            starRating.querySelectorAll('label').forEach(label => {
+                label.addEventListener('click', function() {
+                    const rating = parseInt(this.querySelector('input').value);
+                    currentRating = rating;
+                    
+                    // Update stars
+                    starRating.querySelectorAll('label').forEach((star, index) => {
+                        star.querySelector('span').className = 'text-2xl focus:outline-none transition-colors ' + 
+                            (index < rating ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-400');
+                    });
+                });
+            });
+
+            // Feedback form submission
+            feedbackForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const rating = document.querySelector('input[name="star-rating"]:checked')?.value;
+                const name = feedbackForm.querySelector('input[name="name"]').value;
+                const email = feedbackForm.querySelector('input[name="email"]').value;
+                const comment = feedbackForm.querySelector('textarea[name="comment"]').value;
+
+                if (!rating) {
+                    alert('Please select a rating');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/submit_feedback', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: JSON.stringify({
+                            rating: parseInt(rating),
+                            name: name,
+                            email: email,
+                            comment: comment
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        alert('Thank you for your feedback!');
+                        feedbackPopup.classList.add('hidden');
+                        feedbackForm.reset();
+                        document.querySelectorAll('#star-rating label').forEach(star => {
+                            star.querySelector('span').classList.remove('text-yellow-400');
+                            star.querySelector('span').classList.add('text-gray-300');
+                        });
+                    } else {
+                        alert('Error submitting feedback: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error submitting feedback. Please try again');
+                }
+            });
+
+            // Theme toggle functionality
+function setTheme(isDark) {
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const sunIcon = themeToggleBtn.querySelector('.fa-sun');
+    const moonIcon = themeToggleBtn.querySelector('.fa-moon');
+
+    if (isDark) {
+        html.classList.add('dark');
+        themeToggleBtn.classList.add('dark');
+        
+        // Sun icon transitions
+        sunIcon.classList.remove('opacity-100', 'rotate-0');
+        sunIcon.classList.add('opacity-0', 'rotate-90');
+        
+        // Moon icon transitions
+        moonIcon.classList.remove('opacity-0', 'rotate-90');
+        moonIcon.classList.add('opacity-100', 'rotate-0');
+    } else {
+        html.classList.remove('dark');
+        themeToggleBtn.classList.remove('dark');
+        
+        // Sun icon transitions
+        sunIcon.classList.remove('opacity-0', 'rotate-90');
+        sunIcon.classList.add('opacity-100', 'rotate-0');
+        
+        // Moon icon transitions
+        moonIcon.classList.remove('opacity-100', 'rotate-0');
+        moonIcon.classList.add('opacity-0', 'rotate-90');
+    }
+    
+    // Save theme preference
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+}
+            
+
+            // Set initial theme
+            const savedTheme = localStorage.getItem('theme') === 'dark';
+            setTheme(savedTheme);
+
+            // Theme toggle event listener
+            themeToggleBtn.addEventListener('click', () => {
+                const isDark = !html.classList.contains('dark');
+                setTheme(isDark);
+            });
+            
+            const fileUpload = document.getElementById('file-upload');
+            const filePreview = document.getElementById('file-preview');
+            const removeFileBtn = document.getElementById('remove-file');
+            const fileNameDisplay = filePreview.querySelector('.file-name');
+            let currentFile = null;
+
+            // File upload handling
+            fileUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    currentFile = file;
+                    fileNameDisplay.textContent = file.name;
+                    filePreview.classList.remove('hidden');
+                }
+            });
+
+            // Remove file
+            removeFileBtn.addEventListener('click', function() {
+                currentFile = null;
+                fileUpload.value = '';
+                filePreview.classList.add('hidden');
+            });
+
+            function startChat() {
+                // Hide initial view
+                initialView.classList.add('hidden');
+                // Show messages
+                chatMessages.classList.remove('hidden');
+                // Show fixed input
+                fixedInput.classList.remove('hidden');
+                // Move the form to fixed input
+                fixedInput.querySelector('.max-w-screen-xl').appendChild(chatForm);
+            }
+
+            async function typeMessage(element, text, speed = 10) {
+                const loadingDots = document.createElement('div');
+                loadingDots.className = 'typing-indicator';
+                loadingDots.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+                element.appendChild(loadingDots);
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+                element.removeChild(loadingDots);
+
+                const textNode = document.createElement('span');
+                element.appendChild(textNode);
+                
+                for (let i = 0; i < text.length; i++) {
+                    textNode.textContent += text[i];
+                    await new Promise(resolve => setTimeout(resolve, speed));
+                }
+            }
+
+            function addMessage(message, isUser = false, file = null) {
+                if (!chatMessages.children.length) {
+                    startChat();
+                }
+
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `flex items-start ${isUser ? 'justify-end' : 'justify-start'}`;
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = `max-w-[60%] p-4 rounded-xl ${
+                    isUser 
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white ml-auto' 
+                        : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+                }`;
+                
+                if (!isUser) {
+                    const iconDiv = document.createElement('div');
+                    iconDiv.className = 'w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mr-2';
+                    iconDiv.innerHTML = '<i class="fas fa-robot text-white text-sm"></i>';
+                    messageDiv.appendChild(iconDiv);
+                }
+                
+                const text = document.createElement('p');
+                text.className = `message-text ${isUser ? 'text-white' : 'text-gray-800 dark:text-gray-200'} ${!isUser ? 'typewriter' : ''}`;
+                
+                if (isUser) {
+                    text.textContent = message;
+                } else {
+                    // For bot messages, use the typing animation
+                    typeMessage(text, message);
+                }
+                
+                messageContent.appendChild(text);
+
+                // Add file attachment if present
+                if (file) {
+                    const fileAttachment = document.createElement('div');
+                    fileAttachment.className = 'mt-2 flex items-center space-x-2 text-sm';
+                    fileAttachment.innerHTML = `
+                        
+                    `;
+                    messageContent.appendChild(fileAttachment);
+                }
+                
+                if (isUser) {
+                    messageDiv.classList.add('flex', 'justify-end', 'mb-4');
+                    messageContent.classList.add('bg-blue-500', 'text-white', 'rounded-lg', 'py-2', 'px-4', 'max-w-[70%]', 'message-container');
+                    
+                    // Add double checkmark for user messages
+                    const checkmarkContainer = document.createElement('div');
+                    checkmarkContainer.className = 'checkmark-container';
+                    checkmarkContainer.innerHTML = `
+                        <i class="fas fa-check"></i>
+                        <i class="fas fa-check"></i>
+                    `;
+                    messageContent.appendChild(checkmarkContainer);
+                    messageDiv.appendChild(messageContent);
+
+                    // Simulate message being read after bot responds
+                    setTimeout(() => {
+                        checkmarkContainer.classList.add('read');
+                    }, 1000);
+                } else {
+                    messageDiv.classList.add('flex', 'mb-4');
+                    messageContent.classList.add('bg-gray-200', 'dark:bg-gray-700', 'rounded-lg', 'py-2', 'px-4', 'max-w-[70%]');
+                    messageDiv.appendChild(messageContent);
+                    
+                    // Mark previous message as read
+                    const lastUserMessage = chatMessages.querySelector('.message-container:last-child .checkmark-container');
+                    if (lastUserMessage) {
+                        lastUserMessage.classList.add('read');
+                    }
+                }
+                chatMessages.appendChild(messageDiv);
+                
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            const submitButton = document.getElementById('submit-button');
+            chatForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const message = input.value.trim();
+                const fileContent = window.fileUploadHandler.getFileContent();
+                
+                // Combine file content with message if file is uploaded
+                const combinedMessage = fileContent 
+                    ? `File Content:\n${fileContent}\n\nUser Message: ${message}`
+                    : message;
+
+                if (!combinedMessage) {
+                    alert('Please text.');
+                    return;
+                }
+
+                // Disable form during submission
+                input.disabled = true;
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner animate-spin"></i>';
+
+                try {
+                    const response = await fetch('/new-chat-endpoint', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({
+                            message: combinedMessage,
+                            file_content: fileContent || null
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    // Check for error in response
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Add user message
+                    addMessage(message, true);
+                    
+                    // Add file content if exists
+                    if (fileContent) {
+                        addMessage(`📄 File Content: ${fileContent.substring(0, 200)}...`, true);
+                    }
+                    
+                    // Add bot response
+                    addMessage(data.message || data.response || 'No response received', false, data.source);
+
+                    // Clear input and file
+                    input.value = '';
+                    window.fileUploadHandler.removeFile();
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessage(`❌ Error: ${error.message || 'An unexpected error occurred'}`, false);
+                } finally {
+                    // Re-enable form
+                    input.disabled = false;
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = 'Gönder';
+                }
+            });
+
+            // Weather Widget Functionality
+            const weatherToggle = document.getElementById('weather-toggle');
+            const weatherDetails = document.getElementById('weather-details');
+            const weatherChevron = document.getElementById('weather-chevron');
+
+            // Toggle weather details
+            weatherToggle.addEventListener('click', function() {
+                weatherDetails.classList.toggle('hidden');
+                weatherChevron.classList.toggle('rotate-180');
+            });
+
+            // Fetch and display weather data
+            async function fetchWeatherData() {
+                try {
+                    const locationResponse = await fetch('/get-weather');
+                    const locationData = await locationResponse.json();
+
+                    console.log('Location API Response:', locationData);  // Log full location response for debugging
+
+                    // Check if there's an error in location data
+                    if (locationData.error) {
+                        console.error('Location fetch error:', locationData.error, locationData.details);
+                        document.getElementById('weather-location').textContent = 'Location Error';
+                        document.getElementById('weather-temp').textContent = locationData.details || 'Unable to fetch location';
+                        document.getElementById('weather-icon').innerHTML = `<i class="fas fa-exclamation-triangle text-4xl text-red-500"></i>`;
+                        return;
+                    }
+
+                    const { latitude, longitude } = locationData;
+                    
+                    // Open-Meteo API call for current weather and forecast
+                    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=temperature_2m,precipitation_probability,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`;
+                    
+                    const weatherResponse = await fetch(weatherUrl);
+                    const weatherData = await weatherResponse.json();
+
+                    // Current weather
+                    const currentWeather = weatherData.current_weather;
+                    const temp = Math.round(currentWeather.temperature);
+                    const windSpeedValue = Math.round(currentWeather.windspeed);
+                    
+                    // Weather description mapping
+                    const weatherCodeMap = {
+                        0: 'Clear sky',
+                        1: 'Mainly clear', 
+                        2: 'Partly cloudy',
+                        3: 'Overcast',
+                        45: 'Foggy',
+                        51: 'Light drizzle',
+                        53: 'Drizzle',
+                        61: 'Rain',
+                        71: 'Snow',
+                        95: 'Thunderstorm'
+                    };
+                    
+                    const description = weatherCodeMap[currentWeather.weathercode] || 'Unknown';
+                    
+                    // Weather icon mapping
+                    const weatherIconMap = {
+                        0: 'fa-sun',
+                        1: 'fa-cloud-sun',
+                        2: 'fa-cloud-sun',
+                        3: 'fa-cloud',
+                        45: 'fa-smog',
+                        51: 'fa-cloud-rain',
+                        53: 'fa-cloud-rain',
+                        61: 'fa-cloud-showers-heavy',
+                        71: 'fa-snowflake',
+                        95: 'fa-bolt'
+                    };
+                    
+                    const iconClass = weatherIconMap[currentWeather.weathercode] || 'fa-cloud';
+
+                    // Precipitation probability (next 24 hours)
+                    const precipProb = Math.max(...weatherData.hourly.precipitation_probability.slice(0, 24));
+
+                    // Cloud coverage mapping
+                    const cloudCoverageMap = {
+                        0: 0,   // Clear sky
+                        1: 25,  // Mainly clear
+                        2: 50,  // Partly cloudy
+                        3: 100, // Overcast
+                        45: 75, // Foggy
+                        51: 60, // Light drizzle
+                        53: 80, // Drizzle
+                        61: 90, // Rain
+                        71: 70, // Snow
+                        95: 85  // Thunderstorm
+                    };
+                    
+                    let cloudCoverage = cloudCoverageMap[currentWeather.weathercode] || 50;
+                    
+                    // Ensure cloud coverage is between 0 and 100
+                    cloudCoverage = Math.min(Math.max(cloudCoverage, 0), 100);
+
+                    // Update weather widget
+                    document.getElementById('weather-location').textContent = locationData.location || 'Unknown Location';
+                    document.getElementById('weather-temp').textContent = `${temp}°C, ${description}`;
+                    document.getElementById('weather-humidity').textContent = `${Math.round(precipProb / 2)}%`;
+                    document.getElementById('weather-wind').textContent = `${windSpeedValue} km/h`;
+                    document.getElementById('weather-clouds').textContent = `${cloudCoverage}%`;
+                    document.getElementById('weather-updated').textContent = new Date().toLocaleTimeString();
+
+                    // Update weather icon
+                    const weatherIcon = document.getElementById('weather-icon');
+                    weatherIcon.innerHTML = `<i class="fas ${iconClass} text-4xl text-white drop-shadow-lg"></i>`;
+
+                    // Weather recommendation
+                    const weatherRecommendation = document.getElementById('weather-recommendation');
+                    let recommendation = "No specific recommendation";
+                    if (temp < 10) recommendation = "Protect sensitive areas from cold";
+                    else if (temp > 35) recommendation = "Stay hydrated and seek shade";
+                    else if (precipProb > 50) recommendation = "Prepare for potential rain";
+                    else recommendation = "Moderate weather conditions";
+                    
+                    weatherRecommendation.textContent = recommendation;
+
+                } catch (error) {
+                    console.error('Weather fetch error:', error);
+                    document.getElementById('weather-location').textContent = 'Network Error';
+                    document.getElementById('weather-temp').textContent = 'Unable to fetch weather';
+                    document.getElementById('weather-icon').innerHTML = `<i class="fas fa-wifi text-4xl text-red-500"></i>`;
+                }
+            }
+
+            // Initial fetch
+            fetchWeatherData();
+
+            // Refresh weather every 15 minutes
+            setInterval(fetchWeatherData, 15 * 60 * 1000);
+        });
+    </script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+</html>

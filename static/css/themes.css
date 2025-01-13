@@ -1,0 +1,33 @@
+/* Theme variables and color schemes */
+:root {
+    --primary-light: #3B82F6;
+    --primary-dark: #60A5FA;
+    --bg-light: #F3F4F6;
+    --bg-dark: #1F2937;
+    --text-light: #1F2937;
+    --text-dark: #F9FAFB;
+    --card-light: #FFFFFF;
+    --card-dark: #374151;
+    --border-light: #E5E7EB;
+    --border-dark: #4B5563;
+    --hover-light: #EDF2F7;
+    --hover-dark: #2D3748;
+}
+
+.light {
+    --bg-primary: var(--bg-light);
+    --text-primary: var(--text-light);
+    --card-bg: var(--card-light);
+    --border-color: var(--border-light);
+    --primary: var(--primary-light);
+    --primary-hover: var(--primary-dark);
+}
+
+.dark {
+    --bg-primary: var(--bg-dark);
+    --text-primary: var(--text-dark);
+    --card-bg: var(--card-dark);
+    --border-color: var(--border-dark);
+    --primary: var(--primary-dark);
+    --primary-hover: var(--primary-light);
+}

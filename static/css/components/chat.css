@@ -1,0 +1,45 @@
+/* Chat interface styles */
+.chat-container {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    height: 70vh;
+}
+
+.message {
+    max-width: 80%;
+    margin: 0.5rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.user-message {
+    background-color: var(--primary);
+    color: white;
+    margin-left: auto;
+    border-radius: 1rem 1rem 0 1rem;
+}
+
+.bot-message {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    margin-right: auto;
+    border-radius: 1rem 1rem 1rem 0;
+}
+
+.chat-input {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+.chat-input:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}

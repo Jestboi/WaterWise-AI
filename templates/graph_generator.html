@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Generator - AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/graph_background.css">
+    <style>
+        #graph-image {
+            max-width: 100%;
+            max-height: 600px;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col graph-bg-pattern">
+    <!-- Theme toggle and feedback buttons -->
+<div class="fixed top-6 right-6 z-50 flex items-center space-x-4">
+    <!-- Theme toggle button -->
+    <button id="theme-toggle" class="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110">
+        <i class="fas fa-sun text-xl text-yellow-500 dark:text-yellow-400 transition-transform duration-500 rotate-0 dark:rotate-[360deg] dark:opacity-0"></i>
+        <i class="fas fa-moon text-xl text-blue-500 dark:text-blue-400 absolute transition-transform duration-500 rotate-90 dark:rotate-0 opacity-0 dark:opacity-100"></i>
+    </button>
+</div>
+    <!-- Back button -->
+    <a href="/graph-techniques" class="fixed top-6 left-6 px-5 py-2.5 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group z-50">
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-arrow-left text-blue-500 dark:text-blue-400 group-hover:-translate-x-1 transition-transform duration-300"></i>
+            <span class="bg-gradient-to-r from-blue-500 to-purple-500 dark:from-blue-400 dark:to-purple-500 bg-clip-text text-transparent font-medium">Return to Graphs</span>
+        </div>
+    </a>
+
+    <div class="container mx-auto px-4 py-12">
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+                <h1 class="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-500">
+                    AI Graph Generator </h1>
+
+                    <h1 class="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-500 animate-pulse">Unlimited Token</h1> 
+                
+                <!-- Chat Interface -->
+                <div class="mb-6 relative">
+                    <div id="chat-messages" class="h-[50vh] max-h-[500px] overflow-y-auto bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-4 scrollbar-thin scrollbar-thumb-blue-500 scrollbar-track-blue-100 dark:scrollbar-thumb-blue-400 dark:scrollbar-track-gray-800">
+                        <!-- Chat messages will be dynamically added here -->
+                    </div>
+                    
+                    <form id="chat-form" class="sticky bottom-0 z-10 bg-white dark:bg-gray-800 pt-2">
+                        <div class="flex">
+                            <input 
+                                type="text" 
+                                id="user-input" 
+                                placeholder="Describe the graph you want to generate..." 
+                                class="flex-grow p-2 border rounded-l-lg dark:bg-gray-700 dark:border-gray-600 text-gray-800 dark:text-white"
+                            >
+                            <button 
+                                type="submit" 
+                                class="bg-blue-500 text-white px-4 py-2 rounded-r-lg hover:bg-blue-600 transition-colors"
+                            >
+                                Send
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('chat-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const userInput = document.getElementById('user-input');
+            const chatMessages = document.getElementById('chat-messages');
+            const prompt = userInput.value.trim();
+
+            if (!prompt) return;
+
+            // Add user message to chat
+            const userMessageElement = document.createElement('div');
+            userMessageElement.classList.add('user-message', 'mb-2', 'text-right');
+            userMessageElement.innerHTML = `
+                <span class="inline-block bg-blue-500 text-white px-3 py-2 rounded-lg max-w-[80%]">
+                    ${prompt}
+                </span>
+            `;
+            chatMessages.appendChild(userMessageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Clear input
+            userInput.value = '';
+
+            // Show loading indicator
+            const loadingElement = document.createElement('div');
+            loadingElement.classList.add('ai-message', 'mb-2', 'text-left');
+            loadingElement.innerHTML = `
+                <span class="inline-block bg-gray-200 dark:bg-gray-700 px-3 py-2 rounded-lg max-w-[80%] text-gray-900 dark:text-white">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Generating graph...
+                </span>
+            `;
+            chatMessages.appendChild(loadingElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Send request to generate graph
+            fetch('/generate-graph-api', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ prompt: prompt })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Remove loading indicator
+                chatMessages.removeChild(loadingElement);
+
+                // Create "View Raw Output" button
+                const rawOutputButton = document.createElement('button');
+                rawOutputButton.innerHTML = 'View Ollama Output';
+                rawOutputButton.classList.add(
+                    'bg-gray-200', 'dark:bg-gray-700', 
+                    'text-gray-800', 'dark:text-white', 
+                    'px-3', 'py-1', 'rounded', 
+                    'text-sm', 'mt-2', 'hover:bg-gray-300', 
+                    'dark:hover:bg-gray-600'
+                );
+                rawOutputButton.onclick = () => {
+                    window.showOllamaOutput(data.raw_ollama_output);
+                };
+
+                // Handle successful graph generation
+                if (data.status === 'success') {
+                    const aiResponseElement = document.createElement('div');
+                    aiResponseElement.classList.add('ai-message', 'mb-2', 'text-left');
+                    
+                    // Display graph details and image
+                    aiResponseElement.innerHTML = `
+                        <div class="bg-gray-200 dark:bg-gray-700 px-3 py-2 rounded-lg max-w-[80%]">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-gray-900 dark:text-white">Graph Details</h3>
+                                <button class="view-raw-output-btn text-sm text-blue-600 dark:text-blue-400">View Raw Output</button>
+                            </div>
+                            <div class="mt-4">
+                                <img src="data:image/png;base64,${data.graph_image}" alt="Generated Graph" class="max-w-full h-auto rounded-lg shadow-md">
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add event listener to raw output button
+                    const viewRawOutputBtn = aiResponseElement.querySelector('.view-raw-output-btn');
+                    viewRawOutputBtn.addEventListener('click', () => {
+                        window.showOllamaOutput(data.raw_ollama_output);
+                    });
+                    
+                    chatMessages.appendChild(aiResponseElement);
+                } else {
+                    // Handle error
+                    const errorElement = document.createElement('div');
+                    errorElement.classList.add('ai-message', 'mb-2', 'text-left');
+                    errorElement.innerHTML = `
+                        <div class="inline-block bg-red-200 dark:bg-red-700 px-3 py-2 rounded-lg max-w-[80%] text-gray-800 dark:text-white">
+                            Error: ${data.message}
+                            <button class="view-raw-output-btn text-sm text-blue-600 dark:text-blue-400 ml-2">View Raw Output</button>
+                        </div>
+                    `;
+                    
+                    // Add event listener to raw output button
+                    const viewRawOutputBtn = errorElement.querySelector('.view-raw-output-btn');
+                    viewRawOutputBtn.addEventListener('click', () => {
+                        window.showOllamaOutput(data.raw_ollama_output);
+                    });
+                    
+                    chatMessages.appendChild(errorElement);
+                }
+
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                
+                // Remove loading indicator
+                if (loadingElement.parentNode) {
+                    chatMessages.removeChild(loadingElement);
+                }
+
+                // Show error message
+                const errorElement = document.createElement('div');
+                errorElement.classList.add('ai-message', 'mb-2', 'text-left');
+                errorElement.innerHTML = `
+                    <span class="inline-block bg-red-200 dark:bg-red-700 px-3 py-2 rounded-lg max-w-[80%] text-gray-800 dark:text-white">
+                        Error generating graph. Please try again.
+                    </span>
+                `;
+                chatMessages.appendChild(errorElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
+        });
+    </script>
+    <script src="/static/js/theme.js"></script>
+</body>
+</html>

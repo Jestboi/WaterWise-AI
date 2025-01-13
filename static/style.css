@@ -1,0 +1,153 @@
+/* Light theme default */
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f3f4f6;
+    --text-primary: #1f2937;
+    --text-secondary: #4b5563;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --card-bg: #ffffff;
+    --card-border: #e5e7eb;
+}
+
+/* Dark theme */
+.dark {
+    --bg-primary: #1f2937;
+    --bg-secondary: #111827;
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --primary: #60a5fa;
+    --primary-hover: #3b82f6;
+    --card-bg: #374151;
+    --card-border: #4b5563;
+}
+
+/* Base styles */
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Theme toggle */
+.theme-toggle {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.75rem;
+    border-radius: 9999px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+}
+
+/* Cards */
+.user-access-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    padding: 2rem;
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+}
+
+.user-access-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.dark .user-access-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+}
+
+/* Icons */
+.access-icon {
+    color: var(--primary);
+    transition: all 0.3s ease;
+}
+
+.access-icon:hover {
+    color: var(--primary-hover);
+}
+
+/* Chat interface */
+.chat-container {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+}
+
+.message {
+    padding: 1rem;
+    margin: 0.5rem;
+    border-radius: 0.5rem;
+    max-width: 80%;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.user-message {
+    background-color: var(--primary);
+    color: white;
+    margin-left: auto;
+}
+
+.bot-message {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    margin-right: auto;
+}
+
+/* Inputs */
+.chat-input {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--card-border);
+    transition: all 0.3s ease;
+}
+
+.chat-input:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: var(--primary);
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-hover);
+}

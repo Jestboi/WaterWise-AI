@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+    <h1 class="text-3xl font-bold mb-6 text-gray-800 dark:text-white">Data Analysis with Ollama</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Data Input Section -->
+        <div class="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 dark:text-white">Input Your Data</h2>
+            
+            <form id="dataAnalysisForm" class="space-y-4">
+                <div>
+                    <label for="dataInput" class="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-300">
+                        Data (JSON format)
+                    </label>
+                    <textarea 
+                        id="dataInput" 
+                        rows="6" 
+                        class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                        placeholder='{"Sales": 1500, "Marketing": 800, "R&D": 1200, "Operations": 600}'
+                    ></textarea>
+                </div>
+                
+                <div>
+                    <label for="analysisPrompt" class="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-300">
+                        Custom Analysis Prompt (Optional)
+                    </label>
+                    <textarea 
+                        id="analysisPrompt" 
+                        rows="4" 
+                        class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                        placeholder="Provide a detailed analysis focusing on..."
+                    ></textarea>
+                </div>
+                
+                <div>
+                    <label for="chartType" class="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-300">
+                        Chart Type
+                    </label>
+                    <select 
+                        id="chartType" 
+                        class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                    >
+                        <option value="bar">Bar Chart</option>
+                        <option value="pie">Pie Chart</option>
+                        <option value="line">Line Chart</option>
+                    </select>
+                </div>
+                
+                <button 
+                    type="submit" 
+                    class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-300"
+                >
+                    Analyze Data
+                </button>
+            </form>
+        </div>
+        
+        <!-- Analysis Results Section -->
+        <div class="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 dark:text-white">Analysis Results</h2>
+            
+            <div id="loadingSpinner" class="hidden text-center py-4">
+                <div class="spinner-border text-blue-500" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+            
+            <div id="analysisResults" class="hidden">
+                <div class="mb-4">
+                    <h3 class="font-semibold text-lg mb-2 text-gray-700 dark:text-white">Textual Analysis</h3>
+                    <div id="textualAnalysis" class="bg-white dark:bg-gray-600 p-3 rounded-lg text-sm"></div>
+                </div>
+                
+                <div class="mt-4">
+                    <h3 class="font-semibold text-lg mb-2 text-gray-700 dark:text-white">Visualization</h3>
+                    <img id="dataVisualization" src="" alt="Data Visualization" class="max-w-full rounded-lg">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('dataAnalysisForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Show loading spinner
+    document.getElementById('loadingSpinner').classList.remove('hidden');
+    document.getElementById('analysisResults').classList.add('hidden');
+    
+    // Prepare data
+    const dataInput = document.getElementById('dataInput').value;
+    const analysisPrompt = document.getElementById('analysisPrompt').value;
+    const chartType = document.getElementById('chartType').value;
+    
+    try {
+        const parsedData = JSON.parse(dataInput);
+        
+        fetch('/analyze-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                data: parsedData,
+                analysis_prompt: analysisPrompt || null,
+                chart_type: chartType
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingSpinner').classList.add('hidden');
+            
+            if (data.status === 'success') {
+                document.getElementById('textualAnalysis').textContent = data.textual_analysis;
+                document.getElementById('dataVisualization').src = data.visualization_path;
+                document.getElementById('analysisResults').classList.remove('hidden');
+            } else {
+                throw new Error(data.message);
+            }
+        })
+        .catch(error => {
+            document.getElementById('loadingSpinner').classList.add('hidden');
+            alert('Error: ' + error.message);
+        });
+    } catch (error) {
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        alert('Invalid JSON input: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

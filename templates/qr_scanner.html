@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#3B82F6">
+    <title>QR Scanner - WaterWise-AI</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'shimmer': 'shimmer 8s ease-in-out infinite'
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' }
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-200% center' },
+                            '100%': { backgroundPosition: '200% center' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .animate-shimmer {
+            background-size: 200% auto;
+        }
+        #theme-toggle i {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            position: absolute;
+        }
+        #theme-toggle i.fa-sun {
+            opacity: 1;
+            transform: rotate(0deg);
+        }
+        #theme-toggle i.fa-moon {
+            opacity: 0;
+            transform: rotate(-90deg);
+        }
+        #theme-toggle.dark i.fa-sun {
+            opacity: 0;
+            transform: rotate(90deg);
+        }
+        #theme-toggle.dark i.fa-moon {
+            opacity: 1;
+            transform: rotate(0deg);
+        }
+
+        /* Center QR Reader Elements */
+        #qr-reader {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-height: 400px !important;
+        }
+
+        #qr-reader__dashboard {
+            width: 100% !important;
+            max-width: 400px !important;
+            margin: 0 auto !important;
+        }
+
+        #qr-reader__status {
+            background: transparent !important;
+            border: none !important;
+            color: #6B7280 !important;
+            font-family: inherit !important;
+            margin-bottom: 1rem !important;
+            text-align: center !important;
+            width: 100% !important;
+        }
+        
+        #qr-reader__camera_selection {
+            width: 100% !important;
+            max-width: 300px !important;
+            margin: 1rem auto !important;
+            background: rgba(255, 255, 255, 0.9) !important;
+            border: 1px solid rgba(209, 213, 219, 0.5) !important;
+            padding: 0.75rem !important;
+            border-radius: 0.5rem !important;
+            color: #374151 !important;
+            outline: none !important;
+            text-align: center !important;
+        }
+
+        #qr-reader__dashboard_section_swaplink {
+            color: #3B82F6 !important;
+            text-decoration: none !important;
+            font-weight: 500 !important;
+            display: block !important;
+            margin: 0.5rem auto !important;
+            text-align: center !important;
+            transition: color 0.3s ease !important;
+        }
+
+        #qr-reader__dashboard_section_swaplink:hover {
+            color: #2563EB !important;
+        }
+
+        #qr-reader__scan_region {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border: 2px solid rgba(59, 130, 246, 0.5) !important;
+            border-radius: 1rem !important;
+            overflow: hidden !important;
+            margin: 0 auto !important;
+            max-width: 300px !important;
+            aspect-ratio: 1 !important;
+        }
+
+        #qr-reader__scan_region > img {
+            opacity: 0.7 !important;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
+
+        #qr-reader__scan_region::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg, transparent 45%, rgba(59, 130, 246, 0.3) 50%, transparent 55%);
+            background-size: 200% 200%;
+            animation: scanning 2s linear infinite;
+        }
+
+        .html5-qrcode-element {
+            background: linear-gradient(to right, #3B82F6, #8B5CF6) !important;
+            border: none !important;
+            color: white !important;
+            padding: 0.75rem 1.5rem !important;
+            border-radius: 0.5rem !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+            font-size: 0.875rem !important;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2) !important;
+            margin: 0.5rem auto !important;
+            display: block !important;
+            width: fit-content !important;
+        }
+
+        .html5-qrcode-element:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.3) !important;
+        }
+
+        /* Permission Dialog */
+        #permission-dialog {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-width: 90%;
+            width: 400px;
+            text-align: center;
+        }
+
+        .dark #permission-dialog {
+            background: #1F2937;
+            color: white;
+        }
+
+        /* Dark mode adjustments */
+        .dark #qr-reader__camera_selection {
+            background: rgba(31, 41, 55, 0.9) !important;
+            border-color: rgba(75, 85, 99, 0.5) !important;
+            color: #D1D5DB !important;
+        }
+
+        .dark #qr-reader__status {
+            color: #9CA3AF !important;
+        }
+
+        .dark #qr-reader__dashboard_section_swaplink {
+            color: #60A5FA !important;
+        }
+
+        .dark #qr-reader__dashboard_section_swaplink:hover {
+            color: #93C5FD !important;
+        }
+
+        /* Mobile Optimization */
+        @media (max-width: 640px) {
+            #qr-reader {
+                min-height: 300px !important;
+                padding: 1rem !important;
+            }
+
+            #qr-reader__scan_region {
+                max-width: 250px !important;
+            }
+
+            .html5-qrcode-element {
+                padding: 0.5rem 1rem !important;
+                font-size: 0.75rem !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col">
+    <!-- Back button -->
+    <a href="{{ url_for('index') }}" class="fixed top-6 left-6 px-5 py-2.5 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-arrow-left text-blue-500 dark:text-blue-400 group-hover:-translate-x-1 transition-transform duration-300"></i>
+            <span class="bg-gradient-to-r from-blue-500 to-purple-500 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent font-medium">Return Home</span>
+        </div>
+    </a>
+
+    <!-- Theme toggle button -->
+    <button id="theme-toggle" class="fixed top-6 right-6 w-12 h-12 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110">
+        <i class="fas fa-sun absolute text-yellow-500 dark:text-yellow-400"></i>
+        <i class="fas fa-moon absolute text-blue-500 dark:text-blue-400"></i>
+    </button>
+
+    <!-- Permission Dialog -->
+    <div id="permission-dialog" class="hidden">
+        <i class="fas fa-camera text-4xl text-blue-500 mb-4"></i>
+        <h3 class="text-xl font-bold mb-2">Camera Access Required</h3>
+        <p class="text-gray-600 dark:text-gray-300 mb-4">Please allow camera access to scan QR codes. Your camera will only be used while you're on this page.</p>
+        <button onclick="requestCameraPermission()" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all duration-300 hover:scale-105">
+            Enable Camera
+        </button>
+    </div>
+
+    <div class="container mx-auto px-4 py-12 flex-grow flex flex-col items-center min-h-screen">
+        <div class="text-center mb-8 mt-16">
+            <h1 class="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400 dark:from-blue-400 dark:to-blue-200">
+                Wise QR Scanner
+            </h1>
+            <p class="text-gray-600 dark:text-gray-300">Scan QR codes quickly and easily</p>
+        </div>
+
+        <div class="w-full max-w-2xl mx-auto flex-grow flex flex-col justify-center -mt-20">
+            <div class="relative">
+                <div class="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-400/10 to-blue-500/10 rounded-2xl blur-xl"></div>
+                <div id="qr-reader" class="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 mb-6 border border-white/20 dark:border-gray-700/20">
+                    <div class="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-400/5 to-blue-500/5 rounded-2xl"></div>
+                </div>
+            </div>
+            <div id="qr-reader-results" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        // Theme Toggle Functionality
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        
+        function setTheme(isDark) {
+            if (isDark) {
+                html.classList.add('dark');
+                themeToggle.classList.add('dark');
+            } else {
+                html.classList.remove('dark');
+                themeToggle.classList.remove('dark');
+            }
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        // Check for saved theme preference or system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const savedTheme = localStorage.getItem('theme');
+        const isDark = savedTheme ? savedTheme === 'dark' : prefersDark;
+        setTheme(isDark);
+
+        themeToggle.addEventListener('click', () => {
+            const isDark = !html.classList.contains('dark');
+            setTheme(isDark);
+        });
+
+        // Camera Permission Handling
+        async function requestCameraPermission() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop());
+                document.getElementById('permission-dialog').style.display = 'none';
+                initQRScanner();
+            } catch (error) {
+                console.error('Camera access denied:', error);
+                document.getElementById('qr-reader').innerHTML = `
+                    <div class="text-center p-4">
+                        <i class="fas fa-exclamation-circle text-red-500 text-4xl mb-4"></i>
+                        <p class="text-red-500 font-medium mb-2">Camera Access Denied</p>
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">Please enable camera access in your browser settings to use the QR scanner.</p>
+                        <button onclick="requestCameraPermission()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function initQRScanner() {
+            let html5QrcodeScanner = new Html5QrcodeScanner(
+                "qr-reader", 
+                { 
+                    fps: 10, 
+                    qrbox: { width: 250, height: 250 },
+                    rememberLastUsedCamera: true,
+                    aspectRatio: 1,
+                    showTorchButtonIfSupported: true
+                }
+            );
+
+            html5QrcodeScanner.render(onScanSuccess, onScanError);
+
+            // Style QR Scanner elements after render
+            setTimeout(() => {
+                const scannerElements = document.querySelectorAll('#qr-reader button, #qr-reader select');
+                scannerElements.forEach(element => {
+                    if (element.tagName === 'BUTTON') {
+                        element.classList.add(
+                            'bg-gradient-to-r', 'from-blue-500', 'to-blue-600',
+                            'dark:from-blue-600', 'dark:to-blue-700',
+                            'text-white', 'px-4', 'py-2', 'rounded-lg',
+                            'hover:shadow-lg', 'transition-all', 'duration-300',
+                            'hover:scale-105'
+                        );
+                    } else if (element.tagName === 'SELECT') {
+                        element.classList.add(
+                            'bg-white', 'dark:bg-gray-700',
+                            'text-gray-800', 'dark:text-gray-200',
+                            'rounded-lg', 'px-4', 'py-2',
+                            'border', 'border-gray-300', 'dark:border-gray-600'
+                        );
+                    }
+                });
+            }, 1000);
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log(`Code scanned = ${decodedText}`, decodedResult);
+            document.getElementById('qr-reader-results').innerHTML = `
+                <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-6 shadow-lg transition-all duration-300 hover:shadow-xl">
+                    <p class="text-gray-600 dark:text-gray-300 mb-2">Scanned QR Code:</p>
+                    <a href="${decodedText}" target="_blank" 
+                       class="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-500 transition-colors break-all">
+                        ${decodedText}
+                    </a>
+                </div>`;
+            
+            // Optionally, redirect to the scanned URL
+            window.location.href = decodedText;
+        }
+
+        function onScanError(errorMessage) {
+            console.error(errorMessage);
+        }
+
+        // Check camera permission on page load
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    stream.getTracks().forEach(track => track.stop());
+                    initQRScanner();
+                })
+                .catch(error => {
+                    document.getElementById('permission-dialog').style.display = 'block';
+                });
+        } else {
+            document.getElementById('qr-reader').innerHTML = `
+                <div class="text-center p-4">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
+                    <p class="text-red-500 font-medium mb-2">Camera Not Available</p>
+                    <p class="text-gray-600 dark:text-gray-400">Your device or browser doesn't support camera access.</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

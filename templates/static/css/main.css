@@ -1,0 +1,15 @@
+/* Main stylesheet */
+@import 'themes.css';
+@import 'animations.css';
+@import 'components/chat.css';
+@import 'components/buttons.css';
+@import 'components/cards.css';
+@import 'utilities/scrollbar.css';
+
+/* Base styles */
+body {
+    min-height: 100vh;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s, color 0.3s;
+}

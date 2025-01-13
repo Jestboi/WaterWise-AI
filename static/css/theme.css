@@ -1,0 +1,34 @@
+/* Theme toggle styles */
+html.dark {
+    color-scheme: dark;
+    background-color: #1a202c; /* Dark background color */
+}
+
+html:not(.dark) {
+    color-scheme: light;
+    background-color: #ffffff; /* Light background color */
+}
+
+/* Ensure smooth transition between themes */
+html {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#theme-toggle {
+    transition: all 0.3s ease;
+}
+
+#theme-toggle i {
+    transition: all 0.3s ease;
+    transform-origin: center;
+}
+
+#theme-toggle i.fa-moon {
+    transform: rotate(15deg);
+    font-size: 1.3rem;
+}
+
+#theme-toggle i.fa-sun {
+    transform: rotate(0deg);
+    font-size: 1.4rem;
+}

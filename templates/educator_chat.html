@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'components/head.html' %}
+    {% block head %}
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% endblock %}
+    <title>AI Education Assistant - Water Conservation AI</title>
+    <style>
+        .chat-container {
+            height: calc(100vh - 200px);
+        }
+        .messages {
+            height: calc(100% - 80px);
+            overflow-y: auto;
+        }
+        .message {
+            max-width: 80%;
+        }
+        .message.assistant {
+            background: linear-gradient(to right, #16a34a, #15803d);
+        }
+        .typing-indicator span {
+            animation: blink 1s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        .model-selector-container {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #modelSelector {
+            font-size: 16px;
+            padding: 10px;
+        }
+        #modelDescription {
+            display: block;
+            margin-top: 10px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background-color: white;
+            border-radius: 50%;
+            animation: bounce 1.3s linear infinite;
+            opacity: 0.7;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-green-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col">
+    <!-- Theme toggle and feedback buttons -->
+<div class="fixed top-6 right-6 z-50 flex items-center space-x-4">
+    <!-- Theme toggle button -->
+    <button id="theme-toggle" class="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110">
+        <i class="fas fa-sun text-xl text-yellow-500 dark:text-yellow-400 transition-transform duration-500 rotate-0 dark:rotate-[360deg] dark:opacity-0"></i>
+        <i class="fas fa-moon text-xl text-blue-500 dark:text-blue-400 absolute transition-transform duration-500 rotate-90 dark:rotate-0 opacity-0 dark:opacity-100"></i>
+    </button>
+</div>
+    
+    <!-- Weather Widget Button -->
+<button id="weather-toggle" class="fixed top-20 right-8 w-72 z-40 bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-lg">
+    <div class="p-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div id="weather-icon" class="text-3xl text-white drop-shadow-lg">
+                <i class="fas fa-cloud-sun text-3xl text-white drop-shadow-lg"></i>
+            </div>
+            <div class="text-white">
+                <h3 id="weather-location" class="font-semibold text-sm">Loading Location...</h3>
+                <p id="weather-temp" class="text-xs">Fetching Weather...</p>
+            </div>
+        </div>
+    </div>
+    <div class="px-4 pb-4 grid grid-cols-3 gap-2 text-white text-center">
+        <div>
+            <i class="fas fa-tint text-xs"></i>
+            <p id="weather-humidity" class="text-xs mt-1">-</p>
+        </div>
+        <div>
+            <i class="fas fa-wind text-xs"></i>
+            <p id="weather-wind" class="text-xs mt-1">-</p>
+        </div>
+        <div>
+            <i class="fas fa-cloud text-xs"></i>
+            <p id="weather-clouds" class="text-xs mt-1">-</p>
+        </div>
+    </div>
+    <div class="text-center text-xs text-white/70 pb-2">
+        <div class="mt-1">
+            Last updated: <span id="weather-updated">-</span>
+        </div>
+        <p id="weather-recommendation" class="text-sm text-white/80 mt-1"></p>
+    </div>
+</button>
+
+
+
+
+    <!-- Back button -->
+    <a href="{{ url_for('educators') }}" class="fixed top-6 left-6 px-5 py-2.5 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-arrow-left text-green-500 dark:text-green-400 group-hover:-translate-x-1 transition-transform duration-300"></i>
+            <span class="bg-gradient-to-r from-green-500 to-green-600 dark:from-green-400 dark:to-green-500 bg-clip-text text-transparent font-medium">Return to Portal</span>
+        </div>
+    </a>
+
+<!-- Main Chat Interface -->
+<main class="container mx-auto px-2 py-12 flex-grow">
+    <div class="max-w-10xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-green-400 dark:from-green-400 dark:to-green-200">
+                AI Education Assistant
+            </h1>
+            <p class="text-xl text-gray-600 dark:text-gray-300">
+                Get resources and support for water conservation education
+            </p>
+        </div>
+        <!-- Chat Container -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 chat-container relative">
+            <!-- Messages Area -->
+            <div class="messages space-y-4 mb-6" id="messages">
+                <!-- Welcome Message -->
+                <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-robot text-green-500 dark:text-green-400"></i>
+                    </div>
+                    <div class="message assistant text-white p-4 rounded-2xl rounded-tl-none">
+                        <p>Hello! I'm your Research Assistant.
+                            How can I assist you today?
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="border-t border-gray-200 dark:border-gray-700">
+                <form id="chat-form" class="space-y-0 relative">
+                    <!-- File Preview - Positioned absolutely to prevent layout shift -->
+                    <div
+                        id="file-preview"
+                        class="hidden absolute top-[-4rem] left-0 right-0 bg-green-100 dark:bg-green-800 p-4 rounded-lg flex items-center justify-between shadow-lg"
+                    >
+                        <div class="flex items-center space-x-2">
+                            <i id="file-icon" class="fas fa-file text-gray-500"></i>
+                            <span id="file-name" class="text-gray-800 dark:text-gray-200 font-medium"></span>
+                        </div>
+                        <button
+                            id="remove-file"
+                            class="text-red-500 hover:text-red-700 focus:outline-none"
+                        >
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <!-- Message Input and File Upload - Add padding to accommodate absolute positioned file preview -->
+                    <div class="flex items-center space-x-2 pt-4">
+                        <input
+                            type="text"
+                            id="message-input"
+                            placeholder="Type your message..."
+                            class="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                            required
+                        >
+                        <button
+                            type="submit"
+                            class="bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg transition duration-300"
+                        >
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                        <label
+                            for="file-upload"
+                            class="bg-green-400 hover:bg-green-500 text-white px-4 py-3 rounded-lg transition duration-300 cursor-pointer"
+                        >
+                            <i class="fas fa-upload"></i>
+                        </label>
+                        <input
+                            type="file"
+                            id="file-upload"
+                            class="hidden"
+                            accept=".pdf,.doc,.docx,.txt"
+                        >
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatForm = document.getElementById('chat-form');
+            const messageInput = document.getElementById('message-input');
+            const chatMessages = document.getElementById('messages');
+            
+            let isProcessing = false;
+            const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+            const ALLOWED_FILE_TYPES = ['.pdf', '.doc', '.docx', '.txt'];
+
+            function debugLog(...args) {
+                console.log('[EDUCATOR CHAT DEBUG]', ...args);
+            }
+
+            function showToast(message, type = 'info') {
+                debugLog(`Toast: ${type} - ${message}`);
+                const toast = document.createElement('div');
+                toast.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg transition-all duration-300 
+                    ${type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-x-full');
+                    setTimeout(() => document.body.removeChild(toast), 500);
+                }, 3000);
+            }
+
+            async function typeMessage(element, text, speed = 5, initialDelay = 600) {
+                const loadingDots = document.createElement('div');
+                loadingDots.className = 'typing-indicator';
+                loadingDots.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+                element.appendChild(loadingDots);
+
+                await new Promise(resolve => setTimeout(resolve, initialDelay));
+                element.removeChild(loadingDots);
+
+                const textNode = document.createElement('span');
+                element.appendChild(textNode);
+                
+                for (let i = 0; i < text.length; i++) {
+                    textNode.textContent += text[i];
+                    await new Promise(resolve => setTimeout(resolve, speed));
+                }
+            }
+
+            function validateFile(file) {
+                if (!file) return { valid: false, message: 'No file selected' };
+
+                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                
+                if (!ALLOWED_FILE_TYPES.includes(fileExtension)) {
+                    return { valid: false, message: `Invalid file type. Allowed types: ${ALLOWED_FILE_TYPES.join(', ')}` };
+                }
+
+                if (file.size > MAX_FILE_SIZE) {
+                    return { valid: false, message: `File too large. Maximum size is 50MB` };
+                }
+
+                return { valid: true };
+            }
+
+            async function addMessage(message, isUser = false) {
+                debugLog(`Adding message: ${message}, isUser: ${isUser}`);
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'flex items-start space-x-2 ' + (isUser ? 'justify-end' : '');
+                
+                const content = `
+                    ${!isUser ? `
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-robot text-2xl text-green-500"></i>
+                        </div>
+                    ` : ''}
+                    <div class="${isUser ? 'bg-green-600 text-white' : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'} rounded-lg p-3 max-w-[80%]">
+                        <p class="whitespace-pre-wrap"></p>
+                    </div>
+                    ${isUser ? `
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-user text-2xl text-green-500"></i>
+                        </div>
+                    ` : ''}
+                `;
+                
+                messageDiv.innerHTML = content;
+                const messageText = messageDiv.querySelector('p');
+                chatMessages.appendChild(messageDiv);
+                
+                if (!isUser) {
+                    await typeMessage(messageText, message);
+                } else {
+                    messageText.textContent = message;
+                }
+                
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            // File Upload and Processing
+            const fileUpload = document.getElementById('file-upload');
+            const filePreview = document.getElementById('file-preview');
+            const fileName = document.getElementById('file-name');
+            const fileIcon = document.getElementById('file-icon');
+            const removeFileBtn = document.getElementById('remove-file');
+            const messagesContainer = document.getElementById('messages');
+            let currentFile = null;
+
+            // File upload event listener
+            fileUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Update file preview
+                    fileName.textContent = file.name;
+                    filePreview.classList.remove('hidden');
+
+                    // Set appropriate icon based on file type
+                    if (file.type.startsWith('image/')) {
+                        fileIcon.className = 'fas fa-image text-blue-500';
+                    } else if (file.type === 'application/pdf') {
+                        fileIcon.className = 'fas fa-file-pdf text-red-500';
+                    } else if (['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)) {
+                        fileIcon.className = 'fas fa-file-word text-blue-700';
+                    } else {
+                        fileIcon.className = 'fas fa-file text-gray-500';
+                    }
+
+                    // Create file preview message immediately
+                    const filePreviewMessage = `
+                        <div class="flex items-start space-x-4 mb-4 file-preview-message" data-status="pending">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                                <i class="${fileIcon.className}"></i>
+                            </div>
+                            <div class="message user text-white p-4 rounded-2xl rounded-tl-none bg-blue-500 dark:bg-blue-600">
+                                <p>Uploaded File: ${file.name}</p>
+                                ${file.type.startsWith('image/') ? 
+                                    `<img src="${URL.createObjectURL(file)}" alt="${file.name}" class="max-w-full h-auto mt-2 rounded-lg">` : 
+                                    ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add file preview message to chat
+                    messagesContainer.innerHTML += filePreviewMessage;
+                    
+                    // Scroll to bottom
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                    currentFile = file;
+                }
+            });
+
+            // Remove file event listener
+            removeFileBtn.addEventListener('click', function() {
+                fileUpload.value = ''; // Clear file input
+                filePreview.classList.add('hidden'); // Hide preview
+                
+                // Remove file preview message from chat
+                const filePreviewMessage = document.querySelector('.file-preview-message');
+                if (filePreviewMessage) {
+                    filePreviewMessage.remove();
+                }
+                
+                currentFile = null; // Reset current file
+            });
+
+            // Function to process file and send to Ollama
+            async function processFileWithOllama(file, message) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('message', message);
+
+                try {
+                    const response = await fetch('/process_file_education', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('File processing failed');
+                    }
+
+                    const data = await response.json();
+
+                    // Update file preview message status
+                    const filePreviewMessage = document.querySelector('.file-preview-message');
+                    if (filePreviewMessage) {
+                        filePreviewMessage.querySelector('.message').innerHTML = `
+                            <p>Uploaded File: ${file.name}</p>
+                            ${file.type.startsWith('image/') ? 
+                                `<img src="${URL.createObjectURL(file)}" alt="${file.name}" class="max-w-full h-auto mt-2 rounded-lg">` : 
+                                ''}
+                            <div class="mt-2 text-sm text-white opacity-75">File processed successfully</div>
+                        `;
+                    }
+
+                    // Add AI response to chat
+                    if (data.response) {
+                        addMessage(data.response, false);
+                    }
+
+                    // Reset file input and preview
+                    fileUpload.value = '';
+                    filePreview.classList.add('hidden');
+                    currentFile = null;
+
+                } catch (error) {
+                    console.error('Error processing file:', error);
+                    showToast('Failed to process file', 'error');
+                }
+            }
+
+            // Modify chat form submission to include file processing
+            chatForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const message = messageInput.value.trim();
+
+                // Add user message to chat
+                if (message) {
+                    addMessage(message, true);
+                }
+
+                if (currentFile) {
+                    // Process file with Ollama if a file is selected
+                    await processFileWithOllama(currentFile, message);
+                } else if (message) {
+                    // Regular text message handling
+                    try {
+                        const response = await fetch('/api/educator-chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ message: message })
+                        });
+
+                        const data = await response.json();
+
+                        // Add AI response
+                        if (data.response) {
+                            addMessage(data.response, false);
+                        }
+                    } catch (error) {
+                        console.error('Error sending message:', error);
+                        showToast('Failed to send message', 'error');
+                    }
+                }
+
+                // Clear message input
+                messageInput.value = '';
+            });
+
+            // Initial debug log
+            debugLog('Educator Chat Script Initialized');
+            
+            // Initial focus
+            messageInput.focus();
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const weatherToggle = document.getElementById('weather-toggle');
+            const weatherModal = document.getElementById('weather-modal');
+            const closeWeatherModal = document.getElementById('close-weather-modal');
+
+            // Show weather modal
+            weatherToggle.addEventListener('click', function() {
+                // Update modal with current weather data
+                document.getElementById('modal-humidity').textContent = document.getElementById('weather-humidity').textContent;
+                document.getElementById('modal-wind').textContent = document.getElementById('weather-wind').textContent;
+                document.getElementById('modal-clouds').textContent = document.getElementById('weather-clouds').textContent;
+                document.getElementById('modal-recommendation').textContent = document.getElementById('weather-recommendation').textContent;
+                document.getElementById('modal-updated').textContent = document.getElementById('weather-updated').textContent;
+
+                // Toggle modal visibility with animation
+                weatherModal.classList.remove('hidden', 'opacity-0', 'scale-95');
+                weatherModal.classList.add('flex', 'opacity-100', 'scale-100');
+            });
+
+
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch and display weather data
+            async function fetchWeatherData() {
+                try {
+                    const locationResponse = await fetch('/get-weather');
+                    const locationData = await locationResponse.json();
+
+                    console.log('Location API Response:', locationData);  // Log full location response for debugging
+
+                    // Check if there's an error in location data
+                    if (locationData.error) {
+                        console.error('Location fetch error:', locationData.error, locationData.details);
+                        document.getElementById('weather-location').textContent = 'Location Error';
+                        document.getElementById('weather-temp').textContent = locationData.details || 'Unable to fetch location';
+                        document.getElementById('weather-icon').innerHTML = `<i class="fas fa-exclamation-triangle text-4xl text-red-500"></i>`;
+                        return;
+                    }
+
+                    const { latitude, longitude } = locationData;
+                    
+                    // Open-Meteo API call for current weather and forecast
+                    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=temperature_2m,precipitation_probability,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`;
+                    
+                    const weatherResponse = await fetch(weatherUrl);
+                    const weatherData = await weatherResponse.json();
+
+                    // Current weather
+                    const currentWeather = weatherData.current_weather;
+                    const temp = Math.round(currentWeather.temperature);
+                    const windSpeedValue = Math.round(currentWeather.windspeed);
+                    
+                    // Weather description mapping
+                    const weatherCodeMap = {
+                        0: 'Clear sky',
+                        1: 'Mainly clear', 
+                        2: 'Partly cloudy',
+                        3: 'Overcast',
+                        45: 'Foggy',
+                        51: 'Light drizzle',
+                        53: 'Drizzle',
+                        61: 'Rain',
+                        71: 'Snow',
+                        80: 'Rain showers',
+                        81: 'Thunderstorm',
+                        82: 'Strong thunderstorm',
+                        95: 'Thunderstorm',
+                        96: 'Strong thunderstorm',
+                        99: 'Thunderstorm'
+                    };
+                    
+                    const description = weatherCodeMap[currentWeather.weathercode] || 'Unknown';
+                    
+                    // Weather icon mapping
+                    const weatherIconMap = {
+                        0: 'fa-sun',
+                        1: 'fa-cloud-sun',
+                        2: 'fa-cloud-sun',
+                        3: 'fa-cloud',
+                        45: 'fa-smog',
+                        51: 'fa-cloud-rain',
+                        53: 'fa-cloud-rain',
+                        61: 'fa-cloud-showers-heavy',
+                        71: 'fa-snowflake',
+                        80: 'fa-cloud-rain',
+                        81: 'fa-bolt',
+                        82: 'fa-bolt',
+                        95: 'fa-bolt',
+                        96: 'fa-bolt',
+                        99: 'fa-bolt'
+                    };
+                    
+                    const iconClass = weatherIconMap[currentWeather.weathercode] || 'fa-cloud';
+
+                    // Precipitation probability (next 24 hours)
+                    const precipProb = Math.max(...weatherData.hourly.precipitation_probability.slice(0, 24));
+
+                    // Update weather widget
+                    document.getElementById('weather-location').textContent = locationData.location || 'Unknown Location';
+                    document.getElementById('weather-temp').textContent = `${temp}°C, ${description}`;
+                    document.getElementById('weather-humidity').textContent = `${Math.round(precipProb / 2)}%`;
+                    document.getElementById('weather-wind').textContent = `${windSpeedValue} km/h`;
+                    document.getElementById('weather-clouds').textContent = `${Math.round(precipProb)}%`;
+                    document.getElementById('weather-updated').textContent = new Date().toLocaleTimeString();
+
+                    // Update weather icon
+                    const weatherIcon = document.getElementById('weather-icon');
+                    weatherIcon.innerHTML = `<i class="fas ${iconClass} text-4xl text-white drop-shadow-lg"></i>`;
+
+                    // Weather recommendation
+                    const weatherRecommendation = document.getElementById('weather-recommendation');
+                    let recommendation = "No specific recommendation";
+                    if (temp < 10) recommendation = "Protect sensitive areas from cold";
+                    else if (temp > 35) recommendation = "Stay hydrated and seek shade";
+                    else if (precipProb > 50) recommendation = "Prepare for potential rain";
+                    else recommendation = "Moderate weather conditions";
+                    
+                    weatherRecommendation.textContent = recommendation;
+
+                } catch (error) {
+                    console.error('Weather fetch error:', error);
+                    document.getElementById('weather-location').textContent = 'Network Error';
+                    document.getElementById('weather-temp').textContent = 'Unable to fetch weather';
+                    document.getElementById('weather-icon').innerHTML = `<i class="fas fa-wifi text-4xl text-red-500"></i>`;
+                }
+            }
+
+            // Initial fetch
+            fetchWeatherData();
+
+            // Refresh weather every 15 minutes
+            setInterval(fetchWeatherData, 15 * 60 * 1000);
+        });
+    </script>
+</body>
+</html>

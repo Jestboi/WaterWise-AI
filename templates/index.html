@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'components/head.html' %}
+    <title>Water Conservation AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <style>
+        /* Giriş animasyonu */
+        @keyframes page-enter-droplet {
+            0% {
+                opacity: 0;
+                transform: scale(0) translateY(100vh);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.2) translateY(-50px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* Su damlası hover animasyonu */
+        @keyframes droplet-hover {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-15px) rotate(3deg);
+            }
+        }
+
+        /* Metinler için yavaş belirme animasyonu */
+        @keyframes slowBlurFadeIn {
+            0% { 
+                filter: blur(20px); 
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            100% { 
+                filter: blur(0); 
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes droplet-fall {
+            0% {
+                transform: translateY(-100vh) scale(0.5);
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(100vh) scale(1);
+                opacity: 0;
+            }
+        }
+
+        .water-droplet {
+            position: absolute;
+            color: rgba(59, 130, 246, 0.3);
+            font-size: 20px;
+            pointer-events: none;
+            z-index: 1;
+            animation: droplet-fall linear infinite;
+        }
+
+        .large-droplet-container {
+            position: absolute;
+            top: -220px; /* Daha yukarı çıkarıldı */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: visible;
+            z-index: 10;
+        }
+
+        .large-droplet {
+            position: relative;
+            width: 100px;
+            height: 120px;
+            background: linear-gradient(45deg, rgba(59, 130, 246, 0.7), rgba(59, 130, 246, 0.4));
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: 
+                page-enter-droplet 1.5s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards,
+                droplet-hover 4s ease-in-out infinite;
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+            transform-origin: bottom center;
+            opacity: 0;
+        }
+
+
+        .animate-text-reveal {
+            opacity: 0;
+            animation: slowBlurFadeIn 1s ease-out 1s forwards;
+        }
+
+        .animate-fade-in {
+            opacity: 0;
+            animation: slowBlurFadeIn 1s ease-out 0s forwards;
+        }
+        
+        body {
+            opacity: 0.5;
+            animation: slowBlurFadeIn 1.5s ease-out forwards;
+        }
+        
+        #welcome-section {
+            opacity: 0;
+            animation: slowBlurFadeIn 1s ease-out 0.5s forwards;
+        }
+    </style>
+</head>
+<body class="w-full h-screen max-h-screen overflow-hidden bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-between relative"
+        style="width: 1920px; height: 1080px; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden;">
+     <!-- Theme toggle and feedback buttons -->
+<div class="fixed top-6 right-6 z-50 flex items-center space-x-4">
+    <!-- Theme toggle button -->
+    <button id="theme-toggle" class="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110">
+        <i class="fas fa-sun text-xl text-yellow-500 dark:text-yellow-400 transition-transform duration-500 rotate-0 dark:rotate-[360deg] dark:opacity-0"></i>
+        <i class="fas fa-moon text-xl text-blue-500 dark:text-blue-400 absolute transition-transform duration-500 rotate-90 dark:rotate-0 opacity-0 dark:opacity-100"></i>
+    </button>
+</div>
+    
+    <!-- Floating background elements -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-10 left-1/6 text-4xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -2s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute top-1/4 right-20 text-6xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -4s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute bottom-32 left-40 text-5xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -1s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute top-1/3 right-96 text-4xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -3s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute bottom-80 right-32 text-4xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -2.5s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute top-2/3 left-72 text-5xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -3.5s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute top-20 left-1/2 text-4xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -1.5s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute bottom-40 right-1/2 text-4xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -4.5s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute top-3/4 right-80 text-5xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -2.8s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute bottom-1/2 left-24 text-6xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -3.2s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <!-- New droplets with more spacing -->
+        <div class="absolute bottom-24 right-48 text-7xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -2.3s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute bottom-64 right-1/3 text-5xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -3.7s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute right-16 top-96 text-6xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -4.2s;">
+            <i class="fas fa-tint"></i>
+        </div>
+        <div class="absolute bottom-16 right-96 text-5xl text-blue-400 opacity-50 dark:text-blue-500 dark:opacity-10 floating-element" style="animation-delay: -2.7s;">
+            <i class="fas fa-tint"></i>
+        </div>
+    </div>
+
+    <!-- Welcome Section -->
+    <div id="welcome-section" class="container mx-auto px-4 py-16 text-center relative min-h-screen flex items-center justify-center">
+        <div id="droplet-container" class="absolute inset-0 overflow-hidden pointer-events-none"></div>
+        <div class="relative z-10 max-w-3xl mx-auto">
+            <div class="large-droplet-container">
+                <div class="large-droplet"></div>
+            </div>
+            <h1 class="text-6xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-400 animate-text-reveal">
+                WaterWise-AI
+            </h1>
+            <p class="text-xl text-gray-700 dark:text-gray-300 mb-8 leading-relaxed animate-fade-in">
+                Revolutionize Water Management with AI-Powered Insights: A Chatbot and Analysis Platform for Students, Farmers, 
+                Educators, and Everyday Users to Save Water, Visualize Data, and Make Smarter Decisions.(Education Purposes)
+            </p>
+            <button id="start-button" class="relative mt-2 px-5 py-2 text-white font-medium rounded-lg overflow-hidden group">
+                <span class="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-400 opacity-80 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></span>
+                <span class="absolute inset-0 border-2 border-white/10 rounded-lg pointer-events-none"></span>
+                <span class="relative z-10 flex items-center justify-center">
+                    <span class="mr-1.5">Get Started</span>
+                    <i class="fas fa-arrow-right text-sm transition-transform group-hover:translate-x-0.5"></i>
+                </span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content (Initially Hidden) -->
+    <main id="main-content" class="hidden container mx-auto px-4 py-12 flex-grow flex flex-col items-center justify-center z-10">
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400 dark:from-blue-400 dark:to-blue-200 tracking-tight">
+                WaterWise-AI
+            </h1>
+            <p class="text-xl font-light text-gray-600 dark:text-gray-200 max-w-2xl mx-auto leading-relaxed tracking-wide">
+                Your intelligent assistant for 
+                <span class="font-medium text-blue-500 dark:text-blue-400">water conservation</span>
+                insights and solutions
+            </p>
+        </div>
+
+    
+        <!-- New Feature Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl">
+            <!-- AI Chat Section -->
+            <div class="relative group overflow-hidden rounded-xl shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
+                <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 opacity-80 group-hover:opacity-90 transition-opacity"></div>
+                <a href="{{ url_for('chat_page') }}" class="relative block p-6 bg-white/10 backdrop-blur-sm dark:bg-gray-900/10 h-full">
+                    <div class="relative z-10 text-center flex flex-col h-full">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                            <i class="fas fa-comments text-white text-xl"></i>
+                        </div>
+                        <h2 class="text-xl font-bold mb-3 text-white">AI Conversation</h2>
+                        <p class="text-sm text-white/80 flex-grow mb-4">Get instant, intelligent answers about water conservation</p>
+                        <span class="mt-auto px-4 py-2 bg-white text-blue-600 rounded-full font-semibold text-sm hover:bg-blue-50 transition-colors">
+                            Start Chat <i class="fas fa-arrow-right ml-1"></i>
+                        </span>
+                    </div>
+                </a>
+            </div>
+    
+            <!-- Educators Section -->
+            <div class="relative group overflow-hidden rounded-xl shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
+                <div class="absolute inset-0 bg-gradient-to-br from-green-500 to-teal-600 opacity-80 group-hover:opacity-90 transition-opacity"></div>
+                <a href="{{ url_for('educators') }}" class="relative block p-6 bg-white/10 backdrop-blur-sm dark:bg-gray-900/10 h-full">
+                    <div class="relative z-10 text-center flex flex-col h-full">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                            <i class="fas fa-graduation-cap text-white text-xl"></i>
+                        </div>
+                        <h2 class="text-xl font-bold mb-3 text-white">Educator Resources</h2>
+                        <p class="text-sm text-white/80 flex-grow mb-4">Comprehensive educational materials for water conservation</p>
+                        <span class="mt-auto px-4 py-2 bg-white text-green-600 rounded-full font-semibold text-sm hover:bg-green-50 transition-colors">
+                            Explore Resources <i class="fas fa-book-open ml-1"></i>
+                        </span>
+                    </div>
+                </a>
+            </div>
+    
+            <!-- Farmers Section -->
+            <div class="relative group overflow-hidden rounded-xl shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
+                <div class="absolute inset-0 bg-gradient-to-br from-yellow-500 to-orange-600 opacity-80 group-hover:opacity-90 transition-opacity"></div>
+                <a href="{{ url_for('farmers') }}" class="relative block p-6 bg-white/10 backdrop-blur-sm dark:bg-gray-900/10 h-full">
+                    <div class="relative z-10 text-center flex flex-col h-full">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                            <i class="fas fa-tractor text-white text-xl"></i>
+                        </div>
+                        <h2 class="text-xl font-bold mb-3 text-white">Farmer Solutions</h2>
+                        <p class="text-sm text-white/80 flex-grow mb-4">Advanced water management strategies for agricultural needs</p>
+                        <span class="mt-auto px-4 py-2 bg-white text-yellow-600 rounded-full font-semibold text-sm hover:bg-yellow-50 transition-colors">
+                            Agricultural Insights <i class="fas fa-seedling ml-1"></i>
+                        </span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    
+        <!-- Advanced Analytics Section -->
+        <div class="mt-16 w-full max-w-5xl">
+            <div class="bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 rounded-3xl p-8 shadow-2xl">
+                <div class="flex flex-col md:flex-row items-center mb-8">
+                    <div class="md:w-1/2 mb-6 md:mb-0 md:pr-12">
+                        <h3 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">Advanced Water Analytics</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                            Dive deep into water consumption patterns, predictive modeling, and intelligent insights using cutting-edge graph techniques and machine learning algorithms.
+                        </p>
+                        <div class="flex space-x-4">
+                            <a href="{{ url_for('graph_techniques') }}" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full hover:from-blue-600 hover:to-purple-700 transition-all">
+                                Explore Graph Techniques <i class="fas fa-chart-line ml-1"></i>
+                            </a>
+                            <a href="{{ url_for('water_tax_page') }}" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-full hover:from-green-600 hover:to-teal-700 transition-all">
+                                Water Tax Analysis <i class="fas fa-file-invoice-dollar ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="md:w-1/2 grid grid-cols-2 gap-4">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 text-center shadow-md hover:shadow-lg transition-all">
+                            <i class="fas fa-chart-bar text-blue-500 text-xl mb-2"></i>
+                            <h4 class="font-semibold text-sm">Data Visualization</h4>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 text-center shadow-md hover:shadow-lg transition-all">
+                            <i class="fas fa-project-diagram text-green-500 text-xl mb-2"></i>
+                            <h4 class="font-semibold text-sm">Predictive Modeling</h4>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 text-center shadow-md hover:shadow-lg transition-all">
+                            <i class="fas fa-wave-square text-purple-500 text-xl mb-2"></i>
+                            <h4 class="font-semibold text-sm">Signal Processing</h4>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 text-center shadow-md hover:shadow-lg transition-all">
+                            <i class="fas fa-brain text-indigo-500 text-xl mb-2"></i>
+                            <h4 class="font-semibold text-sm">Machine Learning</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- All Rights Reserved Section -->
+    <div class="relative w-full flex justify-center items-center py-6 overflow-hidden">
+        <div class="relative px-6 py-3 bg-white/5 dark:bg-blue-900/5 rounded-xl backdrop-blur-sm shadow-lg">
+            <div class="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-400/10 to-blue-500/10 animate-pulse rounded-xl"></div>
+            <div class="relative flex items-center space-x-3">
+                <span class="text-sm font-serif tracking-widest bg-gradient-to-r from-blue-500 via-purple-400 to-blue-500 bg-clip-text text-transparent animate-shimmer">
+                    2024 Water Conservation AI
+                </span>
+                <span class="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-400 to-purple-400 animate-pulse"></span>
+                <span class="text-sm font-light tracking-wide animate-text-gradient bg-gradient-to-r from-gray-600 via-gray-500 to-gray-400 dark:from-gray-300 dark:via-gray-200 dark:to-gray-100 bg-clip-text text-transparent bg-[length:400%_100%] animate-shine">
+                    All Rights Reserved
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin button -->
+    <a href="{{ url_for('login') }}" class="fixed bottom-6 right-6 w-12 h-12 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 backdrop-blur-sm">
+        <i class="fas fa-user-shield text-white text-lg"></i>
+    </a>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const startButton = document.getElementById('start-button');
+            const welcomeSection = document.getElementById('welcome-section');
+            const mainContent = document.getElementById('main-content');
+
+            startButton.addEventListener('click', function() {
+                // Animasyon sınıfları ekle
+                welcomeSection.classList.add('animate-slide-out');
+                
+                // Kısa bir gecikmeyle ana içeriği göster
+                setTimeout(() => {
+                    welcomeSection.style.display = 'none';
+                    mainContent.classList.remove('hidden');
+                    mainContent.classList.add('animate-fade-in');
+                }, 500);
+            });
+        });
+    </script>
+    <script>
+        function createRain() {
+            const container = document.getElementById('droplet-container');
+            const dropletCount = 50;
+
+            for (let i = 0; i < dropletCount; i++) {
+                const droplet = document.createElement('div');
+                droplet.classList.add('water-droplet');
+                droplet.innerHTML = '&#x1F4A7;'; // Su damlası emoji
+
+                // Rastgele konumlandırma
+                droplet.style.left = `${Math.random() * 100}%`;
+                
+                // Farklı düşme süreleri ve gecikmeler
+                const duration = 5 + Math.random() * 5; // 5-10 saniye arası
+                const delay = Math.random() * 10; // Rastgele başlangıç zamanı
+
+                droplet.style.animationDuration = `${duration}s`;
+                droplet.style.animationDelay = `-${delay}s`;
+
+                container.appendChild(droplet);
+            }
+        }
+
+        // Sayfa yüklendiğinde yağmur efektini oluştur
+        document.addEventListener('DOMContentLoaded', createRain);
+    </script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+</html>
